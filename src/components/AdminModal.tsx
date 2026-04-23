@@ -25,6 +25,10 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
   const [mapEditorData, setMapEditorData] = useState<MapData | null>(null);
   const [originalMapData, setOriginalMapData] = useState<MapData | null>(null);
 
+  useEffect(() => {
+    console.log('AdminModal cargado con perfil:', profile);
+  }, [profile]);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false });
@@ -88,18 +92,18 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
       .from('users')
       .update({ role: newRole })
       .eq('id', userId)
-      .select()
-      .single();
+      .select();
 
     if (error) {
       console.error('Error de Supabase:', error);
-      alert(`Error crítico (${status}): ${error.message}\n\nEsto suele pasar si no tienes permisos de Superadmin reales en la base de datos.`);
-    } else if (data) {
-      console.log('Cambio exitoso:', data);
-      setUsers(users.map(u => u.id === userId ? { ...u, role: data.role as any } : u));
-      alert(`¡Éxito! El usuario ${data.name} ahora es ${data.role}.`);
+      alert(`Error crítico (${status}): ${error.message}`);
+    } else if (data && data.length > 0) {
+      console.log('Cambio exitoso:', data[0]);
+      setUsers(users.map(u => u.id === userId ? { ...u, role: data[0].role as any } : u));
+      alert(`¡Éxito! El usuario ${data[0].name} ahora es ${data[0].role}.`);
     } else {
-      alert('El servidor no devolvió error, pero tampoco actualizó los datos. Revisa tus permisos de RLS.');
+      console.warn('Ninguna fila actualizada. Status:', status);
+      alert('Error 403: No tienes permisos para modificar este usuario. Tu cuenta no tiene el rango de Superadmin en la base de datos.');
     }
     setLoading(false);
   };
@@ -167,7 +171,10 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         <header className="modal-header">
           <div className="modal-title">
             <span>👑 Panel de Control</span>
-            <small className="ws-name-tag">{currentWorkspaceName || 'Cargando grupo...'}</small>
+            <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+              <small className="ws-name-tag">{currentWorkspaceName || 'Cargando grupo...'}</small>
+              <span className="role-badge">{profile.role?.toUpperCase()}</span>
+            </div>
           </div>
           <button className="close-btn" onClick={onClose}>&times;</button>
         </header>
@@ -309,7 +316,16 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         }
         .modal-title { display: flex; flex-direction: column; }
         .modal-title span { font-weight: bold; font-size: 1.2rem; color: #fff; }
-        .ws-name-tag { font-size: 0.8rem; color: var(--accent2); font-weight: 600; margin-top: 2px; }
+        .ws-name-tag { font-size: 0.8rem; color: var(--accent2); font-weight: 600; }
+        .role-badge { 
+          font-size: 0.6rem; 
+          background: #6c63ff; 
+          padding: 2px 6px; 
+          border-radius: 4px; 
+          color: #fff;
+          font-weight: bold;
+          letter-spacing: 1px;
+        }
         .close-btn { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
         .close-btn:hover { opacity: 1; }
         
