@@ -156,9 +156,6 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
             </div>
           </div>
         ))}
-        <button className="btn-save" onClick={() => onSave(mapData)}>
-          💾 Guardar Cambios
-        </button>
       </div>
 
       <div className="canvas-container">
@@ -240,20 +237,6 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
           background: #000;
           box-shadow: 0 8px 32px rgba(0,0,0,0.5);
           cursor: crosshair;
-        }
-        .btn-save {
-          margin-top: 2rem;
-          width: 100%;
-          background: var(--accent);
-          color: white;
-          border: none;
-          padding: 0.8rem;
-          border-radius: 8px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .btn-save:hover {
-          background: #7c74ff;
         }
       `}</style>
     </div>

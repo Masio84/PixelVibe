@@ -21,7 +21,9 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [currentWorkspaceName, setCurrentWorkspaceName] = useState<string>('');
   const [mapEditorData, setMapEditorData] = useState<MapData | null>(null);
+  const [originalMapData, setOriginalMapData] = useState<MapData | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -39,6 +41,11 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
 
   const fetchWorkspaceLayout = useCallback(async () => {
     setLoading(true);
+    
+    // Fetch name
+    const { data: wsData } = await supabase.from('workspaces').select('name').eq('id', currentWorkspaceId).maybeSingle();
+    if (wsData) setCurrentWorkspaceName(wsData.name);
+
     const { data } = await supabase
       .from('building_layouts')
       .select('*')
@@ -46,19 +53,24 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
       .eq('is_active', true)
       .maybeSingle();
     
+    let finalData: MapData;
     if (data) {
-      setMapEditorData({
+      finalData = {
         id: data.id,
         name: data.name,
         width: data.width,
         height: data.height,
         grid: data.grid,
         zones: data.zones ?? [],
-        furniture: data.furniture ?? []
-      });
+        furniture: data.furniture ?? [],
+        spawn_x: data.spawn_x,
+        spawn_y: data.spawn_y
+      };
     } else {
-      setMapEditorData(ALL_TEMPLATES[0]);
+      finalData = JSON.parse(JSON.stringify(ALL_TEMPLATES[0]));
     }
+    setMapEditorData(finalData);
+    setOriginalMapData(JSON.parse(JSON.stringify(finalData)));
     setLoading(false);
   }, [supabase, currentWorkspaceId]);
 
@@ -73,30 +85,51 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
     if (!error) setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
   };
 
-  const handleSaveMap = async (data: MapData) => {
+  const handleSaveMap = async (data: MapData, shouldClose: boolean = false) => {
     setLoading(true);
-    // Deactivate current
-    await supabase.from('building_layouts').update({ is_active: false }).eq('workspace_id', currentWorkspaceId);
-    
-    const customId = data.id.includes(currentWorkspaceId) ? data.id : `custom_${currentWorkspaceId}_${Date.now()}`;
-    const { error } = await supabase.from('building_layouts').upsert({
-      id: customId,
-      workspace_id: currentWorkspaceId,
-      name: data.name.includes('Custom') ? data.name : `Custom: ${data.name}`,
-      width: data.width,
-      height: data.height,
-      grid: data.grid,
-      zones: data.zones,
-      furniture: data.furniture,
-      spawn_x: data.spawn_x ?? 8,
-      spawn_y: data.spawn_y ?? 8,
-      is_template: false,
-      is_active: true,
-      updated_at: new Date().toISOString()
-    });
-    
-    if (!error) alert('Mapa actualizado correctamente');
-    setLoading(false);
+    try {
+      // Deactivate current
+      await supabase.from('building_layouts').update({ is_active: false }).eq('workspace_id', currentWorkspaceId);
+      
+      const customId = data.id.includes(currentWorkspaceId) ? data.id : `custom_${currentWorkspaceId}_${Date.now()}`;
+      const { error } = await supabase.from('building_layouts').upsert({
+        id: customId,
+        workspace_id: currentWorkspaceId,
+        name: data.name.includes('Custom') ? data.name : `Custom: ${data.name}`,
+        width: data.width,
+        height: data.height,
+        grid: data.grid,
+        zones: data.zones,
+        furniture: data.furniture,
+        spawn_x: data.spawn_x ?? 8,
+        spawn_y: data.spawn_y ?? 8,
+        is_template: false,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      });
+      
+      if (error) throw error;
+      
+      alert('Mapa actualizado correctamente');
+      setOriginalMapData(JSON.parse(JSON.stringify(data)));
+      if (shouldClose) onClose();
+    } catch (err: any) {
+      alert('Error al guardar: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetMap = () => {
+    if (confirm('¿Estás seguro de que quieres restablecer el mapa a la plantilla original? Se perderán todos los cambios no guardados.')) {
+      setMapEditorData(JSON.parse(JSON.stringify(ALL_TEMPLATES[0])));
+    }
+  };
+
+  const handleCancelChanges = () => {
+    if (originalMapData) {
+      setMapEditorData(JSON.parse(JSON.stringify(originalMapData)));
+    }
   };
 
   return (
@@ -105,7 +138,7 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         <header className="modal-header">
           <div className="modal-title">
             <span>👑 Panel de Control</span>
-            <small>Workspace: {currentWorkspaceId}</small>
+            <small>{currentWorkspaceName || 'Cargando grupo...'} ({currentWorkspaceId.substring(0,8)}...)</small>
           </div>
           <button className="close-btn" onClick={onClose}>&times;</button>
         </header>
@@ -165,7 +198,16 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
 
           {activeTab === 'architect' && mapEditorData && (
             <div className="tab-pane editor-pane">
-              <MapEditor initialData={mapEditorData} onSave={handleSaveMap} />
+              <div className="editor-actions">
+                <button className="btn-action apply" onClick={() => handleSaveMap(mapEditorData, false)}>Aplicar Cambios</button>
+                <button className="btn-action save" onClick={() => handleSaveMap(mapEditorData, true)}>Guardar y Salir</button>
+                <button className="btn-action cancel" onClick={handleCancelChanges}>Cancelar</button>
+                <button className="btn-action reset" onClick={handleResetMap}>Restablecer</button>
+              </div>
+              <MapEditor 
+                initialData={mapEditorData} 
+                onSave={(data) => setMapEditorData(data)} 
+              />
             </div>
           )}
         </main>
@@ -234,7 +276,34 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         .admin-table td { padding: 0.8rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .admin-table select { background: #000; color: #fff; border: 1px solid #333; padding: 0.3rem; border-radius: 4px; }
         
-        .editor-pane { height: 100%; }
+        .editor-pane { 
+          height: 100%; 
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .editor-actions {
+          display: flex;
+          gap: 0.5rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          flex-wrap: wrap;
+        }
+        .editor-actions .btn-action {
+          padding: 0.6rem 1.2rem;
+          border-radius: 8px;
+          border: none;
+          font-weight: 600;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-action.apply { background: #43b97f; color: white; }
+        .btn-action.save { background: #6c63ff; color: white; }
+        .btn-action.cancel { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-action.reset { background: #e74c3c; color: white; margin-left: auto; }
+        
+        .btn-action:hover { filter: brightness(1.2); transform: translateY(-1px); }
 
         @media (max-width: 768px) {
           .admin-modal-content { height: 95vh; width: 100%; }
