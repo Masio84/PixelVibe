@@ -1,14 +1,13 @@
 import Phaser from 'phaser';
-import type { AvatarPosition } from '@/lib/types';
+import { AvatarCompositor } from '@/game/AvatarCompositor';
+import type { AvatarConfig, AvatarPosition } from '@/lib/types';
+import { DEFAULT_AVATAR_CONFIG } from '@/lib/types';
 
-export interface AvatarSprite {
+export interface AvatarEntry {
   userId: string;
   name: string;
-  color: string;
-  container: Phaser.GameObjects.Container;
-  body: Phaser.GameObjects.Graphics;
+  compositor: AvatarCompositor;
   label: Phaser.GameObjects.Text;
-  shadow: Phaser.GameObjects.Ellipse;
   chatBubble?: Phaser.GameObjects.Container;
   chatTimeout?: ReturnType<typeof setTimeout>;
   gridX: number;
@@ -16,206 +15,172 @@ export interface AvatarSprite {
   targetX: number;
   targetY: number;
   direction: 'up' | 'down' | 'left' | 'right';
-  animFrame: number;
-  animTimer: number;
 }
-
-const TILE_W = 64;
-const TILE_H = 32;
 
 export class AvatarManager {
   private scene: Phaser.Scene;
-  private avatars: Map<string, AvatarSprite> = new Map();
+  private avatars: Map<string, AvatarEntry> = new Map();
   private getIsoPos: (col: number, row: number) => { x: number; y: number };
 
-  constructor(scene: Phaser.Scene, getIsoPos: (col: number, row: number) => { x: number; y: number }) {
+  constructor(
+    scene: Phaser.Scene,
+    getIsoPos: (col: number, row: number) => { x: number; y: number },
+  ) {
     this.scene = scene;
     this.getIsoPos = getIsoPos;
   }
 
-  createAvatar(userId: string, name: string, color: string, gridX: number, gridY: number): AvatarSprite {
+  /** Create a new avatar with the given configuration. */
+  createAvatar(
+    userId: string,
+    name: string,
+    avatarConfig: AvatarConfig | null,
+    gridX: number,
+    gridY: number,
+  ): AvatarEntry {
+    const config: AvatarConfig = avatarConfig ?? {
+      ...DEFAULT_AVATAR_CONFIG,
+      user_id: userId,
+    };
+
     const pos = this.getIsoPos(gridX, gridY);
 
-    const shadow = this.scene.add.ellipse(pos.x, pos.y + 6, 28, 10, 0x000000, 0.2);
-    shadow.setDepth(gridX + gridY);
+    // Create compositor (handles sprite layers + shadow)
+    const compositor = new AvatarCompositor(this.scene, config);
+    compositor.setPosition(pos.x, pos.y);
+    compositor.setDepth(gridX + gridY);
 
-    const body = this.scene.add.graphics();
-    const label = this.scene.add.text(0, -40, name, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '6px',
+    // Name label — legible sans-serif, not pixel font
+    const label = this.scene.add.text(0, -44, name, {
+      fontFamily: '"Nunito", "Segoe UI", Arial, sans-serif',
+      fontSize: '12px',
       color: '#ffffff',
       stroke: '#000000',
-      strokeThickness: 3,
-      resolution: 2,
+      strokeThickness: 4,
+      resolution: 3,
+      shadow: {
+        offsetX: 0,
+        offsetY: 2,
+        color: '#000000',
+        blur: 4,
+        fill: true,
+      }
     }).setOrigin(0.5);
+    compositor.container.add(label);
 
-    const container = this.scene.add.container(pos.x, pos.y, [body, label]);
-    container.setDepth(gridX + gridY + 0.9);
-
-    const avatar: AvatarSprite = {
+    const entry: AvatarEntry = {
       userId,
       name,
-      color,
-      container,
-      body,
+      compositor,
       label,
-      shadow,
       gridX,
       gridY,
       targetX: gridX,
       targetY: gridY,
       direction: 'down',
-      animFrame: 0,
-      animTimer: 0,
     };
 
-    this.drawAvatarBody(avatar);
-    this.avatars.set(userId, avatar);
-    return avatar;
+    this.avatars.set(userId, entry);
+    return entry;
   }
 
-  private drawAvatarBody(avatar: AvatarSprite) {
-    const g = avatar.body;
-    g.clear();
-
-    const color = parseInt(avatar.color.replace('#', ''), 16);
-    const darkColor = parseInt(avatar.color.replace('#', ''), 16) - 0x202020;
-    const frame = avatar.animFrame;
-    const isMoving = (avatar.gridX !== avatar.targetX || avatar.gridY !== avatar.targetY);
-    const legOffset = isMoving ? (frame % 2 === 0 ? 2 : -2) : 0;
-
-    // Shadow feet
-    g.fillStyle(color, 0.3);
-    g.fillEllipse(0, 12, 20, 6);
-
-    // Legs
-    g.fillStyle(darkColor, 1);
-    g.fillRect(-5, 4 + legOffset, 4, 8);
-    g.fillRect(1, 4 - legOffset, 4, 8);
-
-    // Body (isometric cube style)
-    g.fillStyle(color, 1);
-    // Front face
-    g.fillRect(-8, -14, 16, 18);
-    // Top (lighter)
-    g.fillStyle(parseInt(avatar.color.replace('#', ''), 16) + 0x303030, 1);
-    g.fillRect(-8, -18, 16, 4);
-
-    // Head
-    g.fillStyle(0xfddbb4, 1);
-    g.fillCircle(0, -22, 9);
-
-    // Eyes (direction-based)
-    g.fillStyle(0x222222, 1);
-    switch (avatar.direction) {
-      case 'down':
-        g.fillCircle(-3, -23, 2);
-        g.fillCircle(3, -23, 2);
-        break;
-      case 'up':
-        // Back of head
-        break;
-      case 'left':
-        g.fillCircle(-4, -23, 2);
-        break;
-      case 'right':
-        g.fillCircle(4, -23, 2);
-        break;
+  /** Update or create a remote avatar. */
+  updateAvatar(
+    userId: string,
+    x: number,
+    y: number,
+    direction: 'up' | 'down' | 'left' | 'right',
+    name: string,
+    _color: string, // kept for backwards compat; ignored in compositor mode
+    avatarConfig?: AvatarConfig | null,
+  ) {
+    let entry = this.avatars.get(userId);
+    if (!entry) {
+      entry = this.createAvatar(userId, name, avatarConfig ?? null, x, y);
     }
+    entry.targetX = x;
+    entry.targetY = y;
+    entry.direction = direction;
+    entry.name = name;
 
-    // Hair
-    g.fillStyle(0x4a3000, 1);
-    g.fillRect(-9, -31, 18, 8);
-    g.fillCircle(-9, -26, 3);
-    g.fillCircle(9, -26, 3);
-  }
-
-  updateAvatar(userId: string, x: number, y: number, direction: 'up' | 'down' | 'left' | 'right', name: string, color: string) {
-    let avatar = this.avatars.get(userId);
-    if (!avatar) {
-      avatar = this.createAvatar(userId, name, color, x, y);
+    // Update label text
+    if (entry.label.text !== name) {
+      entry.label.setText(name);
     }
-    avatar.targetX = x;
-    avatar.targetY = y;
-    avatar.direction = direction;
-    avatar.name = name;
-    avatar.color = color;
   }
 
+  /** Remove an avatar. */
   removeAvatar(userId: string) {
-    const avatar = this.avatars.get(userId);
-    if (avatar) {
-      avatar.container.destroy();
-      avatar.shadow.destroy();
-      if (avatar.chatBubble) avatar.chatBubble.destroy();
+    const entry = this.avatars.get(userId);
+    if (entry) {
+      entry.compositor.destroy();
+      if (entry.chatBubble) entry.chatBubble.destroy();
       this.avatars.delete(userId);
     }
   }
 
+  /** Show a chat bubble above the avatar. */
   showChatBubble(userId: string, message: string) {
-    const avatar = this.avatars.get(userId);
-    if (!avatar) return;
+    const entry = this.avatars.get(userId);
+    if (!entry) return;
 
-    if (avatar.chatBubble) {
-      avatar.chatBubble.destroy();
-    }
-    if (avatar.chatTimeout) {
-      clearTimeout(avatar.chatTimeout);
-    }
+    // Clean up existing bubble
+    if (entry.chatBubble) entry.chatBubble.destroy();
+    if (entry.chatTimeout) clearTimeout(entry.chatTimeout);
 
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x000000, 0.8);
     bg.fillRoundedRect(-60, -20, 120, 26, 8);
-    bg.fillStyle(0x000000, 0.8);
     bg.fillTriangle(-6, 6, 6, 6, 0, 14);
 
     const text = this.scene.add.text(0, -7, message.substring(0, 20), {
-      fontFamily: '"Press Start 2P", monospace',
+      fontFamily: 'var(--font-pixel), "Press Start 2P", monospace',
       fontSize: '5px',
       color: '#ffffff',
       wordWrap: { width: 110 },
     }).setOrigin(0.5);
 
     const bubble = this.scene.add.container(0, -55, [bg, text]);
-    avatar.container.add(bubble);
-    avatar.chatBubble = bubble;
+    entry.compositor.container.add(bubble);
+    entry.chatBubble = bubble;
 
-    avatar.chatTimeout = setTimeout(() => {
+    entry.chatTimeout = setTimeout(() => {
       bubble.destroy();
-      avatar.chatBubble = undefined;
+      entry.chatBubble = undefined;
     }, 4000);
   }
 
+  /** Call each frame to interpolate positions and sync animations. */
   update(delta: number) {
-    this.avatars.forEach((avatar) => {
-      // Smooth interpolation toward target
+    this.avatars.forEach((entry) => {
+      // Smooth interpolation
       const speed = 0.08;
-      avatar.gridX += (avatar.targetX - avatar.gridX) * speed;
-      avatar.gridY += (avatar.targetY - avatar.gridY) * speed;
+      entry.gridX += (entry.targetX - entry.gridX) * speed;
+      entry.gridY += (entry.targetY - entry.gridY) * speed;
 
-      const pos = this.getIsoPos(avatar.gridX, avatar.gridY);
-      avatar.container.setPosition(pos.x, pos.y);
-      avatar.shadow.setPosition(pos.x, pos.y + 6);
+      const pos = this.getIsoPos(entry.gridX, entry.gridY);
+      entry.compositor.setPosition(pos.x, pos.y);
 
-      const depth = avatar.gridX + avatar.gridY;
-      avatar.container.setDepth(depth + 0.9);
-      avatar.shadow.setDepth(depth);
+      const depth = entry.gridX + entry.gridY;
+      entry.compositor.setDepth(depth);
 
-      // Animation
-      avatar.animTimer += delta;
-      if (avatar.animTimer > 200) {
-        avatar.animTimer = 0;
-        avatar.animFrame++;
-        this.drawAvatarBody(avatar);
-      }
+      // Check if moving
+      const isMoving =
+        Math.abs(entry.gridX - entry.targetX) > 0.01 ||
+        Math.abs(entry.gridY - entry.targetY) > 0.01;
+
+      // Sync animation
+      entry.compositor.playAnim(entry.direction, isMoving);
     });
   }
 
-  getAvatar(userId: string): AvatarSprite | undefined {
+  /** Get a single avatar entry. */
+  getAvatar(userId: string): AvatarEntry | undefined {
     return this.avatars.get(userId);
   }
 
-  getAllAvatars(): AvatarSprite[] {
+  /** Get all avatar entries. */
+  getAllAvatars(): AvatarEntry[] {
     return Array.from(this.avatars.values());
   }
 }

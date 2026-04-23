@@ -67,12 +67,6 @@ export default function HUD({ profile, onlineCount, onOpenProfile }: HUDProps) {
         </button>
       </div>
 
-      {/* Controls hint */}
-      <div className="hud-controls-hint">
-        <span>WASD / ↑↓←→ para mover</span>
-        <span>·</span>
-        <span>Arrastrar para mover cámara</span>
-      </div>
     </div>
   );
 }

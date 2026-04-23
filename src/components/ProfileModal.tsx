@@ -15,6 +15,12 @@ const AVATAR_COLORS = [
   '#e63946', '#ff9f1c', '#2ec4b6', '#c77dff', '#f72585',
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: '👑 Super Admin',
+  admin: '🛡️ Admin',
+  user: '👤 Usuario',
+};
+
 export default function ProfileModal({ profile, onClose, onSave }: ProfileModalProps) {
   const [name, setName] = useState(profile.name);
   const [color, setColor] = useState(profile.avatar_color);
@@ -38,10 +44,27 @@ export default function ProfileModal({ profile, onClose, onSave }: ProfileModalP
     onClose();
   };
 
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isAdmin = profile.role === 'admin' || isSuperAdmin;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <h2 className="modal-title">✏️ Tu Perfil</h2>
+
+        {/* Role badge */}
+        {profile.role && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.3rem 0.8rem', borderRadius: '999px', marginBottom: '0.75rem',
+            fontSize: '0.7rem', fontWeight: 700,
+            background: isSuperAdmin ? 'linear-gradient(135deg, #f9a826, #ff6584)' :
+                        isAdmin ? 'linear-gradient(135deg, #6c63ff, #00b4d8)' : 'rgba(255,255,255,0.1)',
+            color: '#fff',
+          }}>
+            {ROLE_LABELS[profile.role] ?? profile.role}
+          </div>
+        )}
 
         {/* Avatar preview */}
         <div className="modal-avatar-preview">
@@ -79,6 +102,27 @@ export default function ProfileModal({ profile, onClose, onSave }: ProfileModalP
         <div className="modal-email">
           <span className="modal-email-label">Email:</span> {profile.email}
         </div>
+
+        {/* Admin Panel Access */}
+        {isAdmin && (
+          <a
+            href="/admin/assets"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.6rem 1rem', borderRadius: '10px', marginBottom: '0.75rem',
+              background: 'linear-gradient(135deg, rgba(108,99,255,0.25), rgba(255,101,132,0.25))',
+              border: '1px solid rgba(108,99,255,0.5)',
+              color: '#ffffff', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 600,
+              transition: 'background 0.2s',
+            }}
+          >
+            {isSuperAdmin ? '👑' : '🛡️'}
+            Panel de Control Admin
+            <span style={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.7rem' }}>↗</span>
+          </a>
+        )}
 
         <div className="modal-actions">
           <button className="modal-btn-cancel" onClick={onClose}>Cancelar</button>

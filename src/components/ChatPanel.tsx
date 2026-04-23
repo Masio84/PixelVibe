@@ -16,12 +16,9 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  return `${Math.floor(s / 3600)}h`;
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 export default function ChatPanel({ profile, messages, localPosition }: ChatPanelProps) {
@@ -82,7 +79,7 @@ export default function ChatPanel({ profile, messages, localPosition }: ChatPane
                   {msg.name || 'User'}
                 </span>
                 <span className="chat-msg-content">{msg.content}</span>
-                <span className="chat-msg-time">{msg.created_at ? timeAgo(msg.created_at) : 'now'}</span>
+                <span className="chat-msg-time">{msg.created_at ? formatTime(msg.created_at) : 'ahora'}</span>
               </div>
             ))}
             <div ref={bottomRef} />

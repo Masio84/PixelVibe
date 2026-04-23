@@ -47,6 +47,7 @@ function buildProfileFromSession(user: any): UserProfile {
 export default function OfficePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [avatarConfig, setAvatarConfig] = useState<any>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [onlineCount, setOnlineCount] = useState(1);
   const [showProfile, setShowProfile] = useState(false);
@@ -63,7 +64,29 @@ export default function OfficePage() {
         return;
       }
 
+      // Check if user has configured their avatar
+      const { data: avatarConfig } = await supabase
+        .from('avatar_config')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (!avatarConfig) {
+        // First time user — redirect to character creator
+        router.replace('/create-avatar');
+        return;
+      }
+
       const p = buildProfileFromSession(session.user);
+
+      // Fetch role from DB
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', p.id)
+        .maybeSingle();
+      if (dbUser?.role) p.role = dbUser.role;
+
       localStorage.setItem('pixelvibe_profile', JSON.stringify(p));
 
       // Upsert user in DB
@@ -96,6 +119,7 @@ export default function OfficePage() {
 
       setOnlineCount(Math.max(1, count || 1));
       setProfile(p);
+      setAvatarConfig(avatarConfig);
       setLoading(false);
     };
 
@@ -149,6 +173,7 @@ export default function OfficePage() {
         {/* Phaser Canvas */}
         <PhaserGame
           profile={profile}
+          avatarConfig={avatarConfig}
           onChatMessage={handleChatMessage}
         />
 

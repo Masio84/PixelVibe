@@ -6,10 +6,11 @@ import { createClient } from '@/lib/supabase/client';
 
 interface PhaserGameProps {
   profile: UserProfile;
+  avatarConfig?: any;
   onChatMessage?: (msg: ChatMessage) => void;
 }
 
-export default function PhaserGame({ profile, onChatMessage }: PhaserGameProps) {
+export default function PhaserGame({ profile, avatarConfig, onChatMessage }: PhaserGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<import('phaser').Game | null>(null);
   const gameSceneRef = useRef<import('@/game/scenes/GameScene').GameScene | null>(null);
@@ -18,11 +19,13 @@ export default function PhaserGame({ profile, onChatMessage }: PhaserGameProps) 
   
   const onChatMessageRef = useRef(onChatMessage);
   const profileRef = useRef(profile);
+  const avatarConfigRef = useRef(avatarConfig);
 
   useEffect(() => {
     onChatMessageRef.current = onChatMessage;
     profileRef.current = profile;
-  }, [onChatMessage, profile]);
+    avatarConfigRef.current = avatarConfig;
+  }, [onChatMessage, profile, avatarConfig]);
 
   const handlePositionUpdate = useCallback(async (x: number, y: number, direction: string) => {
     const currentProfile = profileRef.current;
@@ -77,6 +80,7 @@ export default function PhaserGame({ profile, onChatMessage }: PhaserGameProps) 
         const gs = game.scene.getScene('GameScene') as import('@/game/scenes/GameScene').GameScene;
         game.scene.start('GameScene', {
           profile: profileRef.current,
+          avatarConfig: avatarConfigRef.current,
           events: {
             onPositionUpdate: handlePositionUpdate,
             onChatMessage: (msg: string) => {
@@ -154,6 +158,49 @@ export default function PhaserGame({ profile, onChatMessage }: PhaserGameProps) 
       ref={containerRef}
       style={{ width: '100%', height: '100%', position: 'relative' }}
       id="phaser-container"
-    />
+    >
+      {/* Zoom Controls */}
+      <div style={{
+        position: 'absolute', bottom: '1.5rem', right: '1.5rem',
+        display: 'flex', flexDirection: 'column', gap: '0.4rem', zIndex: 50,
+      }}>
+        <button
+          title="Acercar"
+          onClick={() => gameSceneRef.current?.adjustZoom(0.2)}
+          style={zoomBtnStyle}
+        >
+          🔍＋
+        </button>
+        <button
+          title="Alejar"
+          onClick={() => gameSceneRef.current?.adjustZoom(-0.2)}
+          style={zoomBtnStyle}
+        >
+          🔍－
+        </button>
+        <button
+          title="Restablecer zoom"
+          onClick={() => {
+            gameSceneRef.current?.adjustZoom(1 - (gameSceneRef.current?.getZoom() ?? 1));
+          }}
+          style={{ ...zoomBtnStyle, fontSize: '0.6rem', padding: '0.35rem 0.5rem' }}
+        >
+          1:1
+        </button>
+      </div>
+    </div>
   );
 }
+
+const zoomBtnStyle: React.CSSProperties = {
+  background: 'rgba(15, 15, 30, 0.85)',
+  border: '1px solid rgba(108, 99, 255, 0.5)',
+  color: '#ffffff',
+  borderRadius: '8px',
+  padding: '0.4rem 0.6rem',
+  fontSize: '0.75rem',
+  cursor: 'pointer',
+  backdropFilter: 'blur(6px)',
+  transition: 'background 0.2s',
+  userSelect: 'none',
+};
