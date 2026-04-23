@@ -81,13 +81,27 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
   }, [activeTab, fetchUsers, fetchWorkspaces, fetchWorkspaceLayout]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
-    const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId);
-    if (!error) {
-      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
-      alert('Rol global actualizado');
+    setLoading(true);
+    console.log('Intentando cambiar rol:', { userId, newRole });
+    
+    const { data, error, status } = await supabase
+      .from('users')
+      .update({ role: newRole })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error de Supabase:', error);
+      alert(`Error crítico (${status}): ${error.message}\n\nEsto suele pasar si no tienes permisos de Superadmin reales en la base de datos.`);
+    } else if (data) {
+      console.log('Cambio exitoso:', data);
+      setUsers(users.map(u => u.id === userId ? { ...u, role: data.role as any } : u));
+      alert(`¡Éxito! El usuario ${data.name} ahora es ${data.role}.`);
     } else {
-      alert('Error de permisos: Solo un Superadmin puede cambiar roles globales. Error: ' + error.message);
+      alert('El servidor no devolvió error, pero tampoco actualizó los datos. Revisa tus permisos de RLS.');
     }
+    setLoading(false);
   };
 
   const handleWorkspaceAdminChange = async (workspaceId: string, newAdminId: string) => {
@@ -179,11 +193,26 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
                       <td>{u.name}</td>
                       <td>{u.email}</td>
                       <td>
-                        <select value={u.role || 'user'} onChange={(e) => handleRoleChange(u.id, e.target.value)}>
-                          <option value="user">Usuario</option>
-                          <option value="admin">Admin</option>
-                          <option value="superadmin">Superadmin</option>
-                        </select>
+                        <div style={{display: 'flex', gap: '0.5rem'}}>
+                          <select 
+                            value={u.role || 'user'} 
+                            onChange={(e) => {
+                              const newUsers = users.map(user => user.id === u.id ? {...user, role: e.target.value as any} : user);
+                              setUsers(newUsers);
+                            }}
+                          >
+                            <option value="user">Usuario</option>
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Superadmin</option>
+                          </select>
+                          <button 
+                            className="btn-action save" 
+                            style={{padding: '2px 8px', fontSize: '0.7rem'}}
+                            onClick={() => handleRoleChange(u.id, u.role)}
+                          >
+                            Guardar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
