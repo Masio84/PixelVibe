@@ -138,7 +138,7 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         <header className="modal-header">
           <div className="modal-title">
             <span>👑 Panel de Control</span>
-            <small>{currentWorkspaceName || 'Cargando grupo...'} ({currentWorkspaceId.substring(0,8)}...)</small>
+            <small className="ws-name-tag">{currentWorkspaceName || 'Cargando grupo...'}</small>
           </div>
           <button className="close-btn" onClick={onClose}>&times;</button>
         </header>
@@ -198,11 +198,15 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
 
           {activeTab === 'architect' && mapEditorData && (
             <div className="tab-pane editor-pane">
-              <div className="editor-actions">
-                <button className="btn-action apply" onClick={() => handleSaveMap(mapEditorData, false)}>Aplicar Cambios</button>
-                <button className="btn-action save" onClick={() => handleSaveMap(mapEditorData, true)}>Guardar y Salir</button>
-                <button className="btn-action cancel" onClick={handleCancelChanges}>Cancelar</button>
-                <button className="btn-action reset" onClick={handleResetMap}>Restablecer</button>
+              <div className="editor-toolbar">
+                <div className="toolbar-group">
+                  <button className="btn-action apply" onClick={() => handleSaveMap(mapEditorData, false)}>✓ Aplicar</button>
+                  <button className="btn-action save" onClick={() => handleSaveMap(mapEditorData, true)}>💾 Guardar y Salir</button>
+                </div>
+                <div className="toolbar-group">
+                  <button className="btn-action cancel" onClick={handleCancelChanges}>↩ Cancelar</button>
+                  <button className="btn-action reset" onClick={handleResetMap}>🗑️ Restablecer</button>
+                </div>
               </div>
               <MapEditor 
                 initialData={mapEditorData} 
@@ -211,6 +215,10 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
             </div>
           )}
         </main>
+
+        <footer className="modal-footer">
+          <button className="btn-footer-close" onClick={onClose}>Cerrar Panel</button>
+        </footer>
       </div>
 
       <style jsx>{`
@@ -245,8 +253,9 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         }
         .modal-title { display: flex; flex-direction: column; }
         .modal-title span { font-weight: bold; font-size: 1.2rem; color: #fff; }
-        .modal-title small { font-size: 0.7rem; color: #666; }
-        .close-btn { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; }
+        .ws-name-tag { font-size: 0.8rem; color: var(--accent2); font-weight: 600; margin-top: 2px; }
+        .close-btn { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; }
+        .close-btn:hover { opacity: 1; }
         
         .modal-tabs {
           display: flex;
@@ -282,14 +291,18 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
           flex-direction: column;
           gap: 1rem;
         }
-        .editor-actions {
+        .editor-toolbar {
           display: flex;
-          gap: 0.5rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          justify-content: space-between;
+          padding: 1rem;
+          background: rgba(255,255,255,0.03);
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.05);
           flex-wrap: wrap;
+          gap: 1rem;
         }
-        .editor-actions .btn-action {
+        .toolbar-group { display: flex; gap: 0.5rem; }
+        .btn-action {
           padding: 0.6rem 1.2rem;
           border-radius: 8px;
           border: none;
@@ -297,13 +310,34 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
           font-size: 0.85rem;
           cursor: pointer;
           transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
         .btn-action.apply { background: #43b97f; color: white; }
         .btn-action.save { background: #6c63ff; color: white; }
         .btn-action.cancel { background: rgba(255,255,255,0.1); color: #fff; }
-        .btn-action.reset { background: #e74c3c; color: white; margin-left: auto; }
+        .btn-action.reset { background: #e74c3c; color: white; }
         
         .btn-action:hover { filter: brightness(1.2); transform: translateY(-1px); }
+
+        .modal-footer {
+          padding: 1.5rem;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          display: flex;
+          justify-content: flex-end;
+          background: rgba(0,0,0,0.1);
+        }
+        .btn-footer-close {
+          background: transparent;
+          border: 1px solid rgba(255,255,255,0.2);
+          color: #fff;
+          padding: 0.6rem 1.5rem;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-footer-close:hover { background: rgba(255,255,255,0.1); }
 
         @media (max-width: 768px) {
           .admin-modal-content { height: 95vh; width: 100%; }
