@@ -245,6 +245,7 @@ export default function OfficePage() {
         {/* Chat Panel */}
         <ChatPanel
           profile={profile}
+          workspaceId="main"
           messages={messages}
           localPosition={localPosition}
         />

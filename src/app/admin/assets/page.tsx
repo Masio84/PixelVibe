@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { AssetCatalogEntry, AvatarPieceCategory, AvatarGender } from '@/lib/types';
 
@@ -17,16 +17,16 @@ export default function AdminAssetsPage() {
   const [gender, setGender] = useState<AvatarGender | 'unisex'>('unisex');
   const [uploading, setUploading] = useState(false);
 
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from('asset_catalog').select('*').order('category').order('sort_order');
     if (data) setAssets(data as AssetCatalogEntry[]);
     setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchAssets();
-  }, []);
+  }, [fetchAssets]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
