@@ -8,8 +8,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span style={{ fontSize: '1.5rem' }}>👑</span>
           <h1 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-pixel)', background: 'linear-gradient(135deg, #6c63ff, #ff6584)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>PixelVibe Admin</h1>
         </div>
-        <nav style={{ display: 'flex', gap: '1rem' }}>
-          <Link href="/admin/assets" style={{ color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>Asset Catalog</Link>
+        <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <Link href="/admin/users" style={{ color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>Usuarios</Link>
+          <Link href="/admin/workspaces" style={{ color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>Grupos</Link>
+          <Link href="/admin/assets" style={{ color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>Catálogo</Link>
+          <Link href="/admin/architect" style={{ color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>Arquitecto</Link>
           <Link href="/office" style={{ color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', background: '#6c63ff', borderRadius: '8px' }}>Volver a Oficina</Link>
         </nav>
       </header>

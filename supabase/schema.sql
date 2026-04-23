@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   email TEXT NOT NULL,
   name TEXT NOT NULL DEFAULT 'Pixel User',
   avatar_color TEXT NOT NULL DEFAULT '#6c63ff',
+  role TEXT NOT NULL DEFAULT 'user', -- 'user', 'admin', 'superadmin'
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -21,7 +22,7 @@ CREATE POLICY "Users can upsert own" ON public.users
   FOR INSERT WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Users can update own" ON public.users
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING (auth.uid() = id OR EXISTS (SELECT 1 FROM public.users AS u WHERE u.id = auth.uid() AND u.role = 'superadmin'));
 
 -- 2. Tabla avatar_positions
 CREATE TABLE IF NOT EXISTS public.avatar_positions (
@@ -161,3 +162,69 @@ COMMIT;
 -- - Client ID y Client Secret desde Google Cloud Console
 -- - Redirect URL: https://[tu-proyecto].supabase.co/auth/v1/callback
 -- ============================================================
+
+-- ============================================================
+-- 7. Tabla workspaces (Grupos de trabajo)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.workspaces (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  pin_code TEXT, -- 4 digit PIN, nullable if public
+  admin_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read workspaces" ON public.workspaces
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins can insert workspaces" ON public.workspaces
+  FOR INSERT WITH CHECK (auth.uid() = admin_id AND EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND (role = 'admin' OR role = 'superadmin')));
+
+CREATE POLICY "Admins can update own workspaces" ON public.workspaces
+  FOR UPDATE USING (auth.uid() = admin_id OR EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'superadmin'));
+
+-- ============================================================
+-- 8. Tabla building_layouts (Arquitecto de Edificio)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.building_layouts (
+  id TEXT PRIMARY KEY,
+  workspace_id UUID REFERENCES public.workspaces(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  thumbnail_url TEXT,
+  width INT NOT NULL DEFAULT 32,
+  height INT NOT NULL DEFAULT 32,
+  grid JSONB NOT NULL,
+  zones JSONB NOT NULL DEFAULT '[]',
+  furniture JSONB DEFAULT '[]',
+  is_template BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT false,
+  spawn_x INTEGER DEFAULT 8,
+  spawn_y INTEGER DEFAULT 8,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.building_layouts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read active building layouts" ON public.building_layouts
+  FOR SELECT USING (is_active = true OR is_template = true);
+
+CREATE POLICY "Admins can manage building layouts" ON public.building_layouts
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND (users.role = 'admin' OR users.role = 'superadmin'))
+  );
+
+-- Enable realtime for new tables
+BEGIN;
+  DROP PUBLICATION IF EXISTS supabase_realtime;
+  CREATE PUBLICATION supabase_realtime FOR TABLE 
+    public.avatar_positions, 
+    public.messages,
+    public.building_layouts,
+    public.workspaces,
+    public.users;
+COMMIT;

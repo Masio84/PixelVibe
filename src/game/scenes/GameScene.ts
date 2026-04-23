@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { IsometricScene } from '@/game/scenes/IsometricScene';
 import { AvatarManager } from '@/game/AvatarManager';
-import { MAP_LAYOUT, TILE_WALKABLE } from '@/game/map';
+import { isGridWalkable, setActiveMapData, DEFAULT_MAP_DATA } from '@/game/map';
+import type { MapData } from '@/game/map';
 import type { UserProfile, AvatarPosition, AvatarConfig } from '@/lib/types';
 import { DEFAULT_AVATAR_CONFIG } from '@/lib/types';
 import { AvatarCompositor } from '@/game/AvatarCompositor';
@@ -19,7 +20,7 @@ export class GameScene extends Phaser.Scene {
   private mapScene!: IsometricScene;
   private avatarManager!: AvatarManager;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  
+
   private localAvatarId: string = '';
   private localX: number = 8;
   private localY: number = 8;
@@ -29,6 +30,7 @@ export class GameScene extends Phaser.Scene {
   private events_cb?: GameSceneEvents;
   private userProfile?: UserProfile;
   private avatarConfig?: AvatarConfig;
+  private mapData: MapData = DEFAULT_MAP_DATA;
 
   // Camera
   private isDragging: boolean = false;
@@ -38,11 +40,21 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
-  init(data: { profile: UserProfile; events: GameSceneEvents; avatarConfig?: AvatarConfig }) {
+  init(data: {
+    profile: UserProfile;
+    events: GameSceneEvents;
+    avatarConfig?: AvatarConfig;
+    mapData?: MapData;
+  }) {
     this.userProfile = data.profile;
     this.events_cb = data.events;
     this.localAvatarId = data.profile.id;
     this.avatarConfig = data.avatarConfig;
+    this.mapData = data.mapData ?? DEFAULT_MAP_DATA;
+    this.localX = this.mapData.spawn_x ?? 8;
+    this.localY = this.mapData.spawn_y ?? 8;
+    // Push map into the live reference so walkability checks use it
+    setActiveMapData(this.mapData);
   }
 
   preload() {
@@ -57,33 +69,38 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // Launch the tile layer scene behind this one
+    // Launch the tile layer scene behind this one, passing map data
     this.scene.launch('IsometricScene');
     this.scene.sendToBack('IsometricScene');
 
     this.mapScene = this.scene.get('IsometricScene') as IsometricScene;
+    this.mapScene.setMapData(this.mapData);
 
     this.avatarManager = new AvatarManager(this, this.getIsoPos.bind(this));
 
-    // Ambient Lighting Overlay (Night/Cozy mode)
+    // Ambient Lighting Overlay
     const ambient = this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x1a2b4c, 0.4);
     ambient.setOrigin(0, 0);
     ambient.setScrollFactor(0);
     ambient.setBlendMode(Phaser.BlendModes.MULTIPLY);
-    ambient.setDepth(1000); // Above avatars
-    
-    // Add resize listener to keep overlay full screen
+    ambient.setDepth(1000);
+
     this.scale.on('resize', (gameSize: any) => {
       ambient.setSize(gameSize.width * 2, gameSize.height * 2);
     });
 
-
     // Input
     this.cursors = this.input.keyboard!.createCursorKeys();
+    this.input.keyboard!.addCapture('UP,DOWN,LEFT,RIGHT');
     this.input.keyboard!.removeCapture('SPACE');
 
-    // Camera drag (optional free look)
+    // Camera drag
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      // Focus game on click
+      if (typeof window !== 'undefined') {
+        (this.game.canvas as HTMLElement).focus();
+      }
+
       this.isDragging = true;
       this.dragStart = { x: ptr.x, y: ptr.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY };
       this.cameras.main.stopFollow();
@@ -101,9 +118,19 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // ---- Mouse Wheel Zoom ----
-    this.input.on('wheel', (_ptr: Phaser.Input.Pointer, _gos: any, _dx: number, dy: number) => {
-      this.adjustZoom(dy > 0 ? -0.1 : 0.1);
+    // Mouse wheel zoom
+    this.input.on('wheel', (ptr: Phaser.Input.Pointer, _gos: any, _dx: number, dy: number) => {
+      this.adjustZoom(dy > 0 ? -0.1 : 0.1, ptr);
+    });
+
+    // Click to move (Mobile/Mouse)
+    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      // If we clicked on a UI element (handled by HTML), don't move
+      // But Phaser captures everything. We'll use a simple coordinate check
+      // or just allow it since the HUD is HTML on top.
+      if (ptr.button === 0) { // Left click
+         this.handleWorldClick(ptr);
+      }
     });
 
     // Create local avatar
@@ -120,15 +147,49 @@ export class GameScene extends Phaser.Scene {
         this.localY
       );
 
-      // Follow player automatically
       this.cameras.main.startFollow(avatar.compositor.container, true, 0.1, 0.1);
-      if (this.mapScene && this.mapScene.cameras && this.mapScene.cameras.main) {
+      if (this.mapScene?.cameras?.main) {
         this.mapScene.cameras.main.startFollow(avatar.compositor.container, true, 0.1, 0.1);
       }
     }
 
-    // Gradient background (handled in CSS / layout)
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+  }
+
+  private handleWorldClick(ptr: Phaser.Input.Pointer) {
+    // Convert screen click to iso grid coordinates
+    // This is the inverse of getIsoPos
+    const baseX = this.scale.width / 2;
+    const baseY = 80;
+    
+    // x = baseX + (col - row) * (TILE_W / 2)
+    // y = baseY + (col + row) * (TILE_H / 2)
+    
+    // Let's simplify and use the camera inverse
+    const worldX = (ptr.x - this.cameras.main.centerX) / this.cameras.main.zoom + this.cameras.main.scrollX + this.cameras.main.centerX;
+    const worldY = (ptr.y - this.cameras.main.centerY) / this.cameras.main.zoom + this.cameras.main.scrollY + this.cameras.main.centerY;
+    
+    // Iso to Grid:
+    // relX = worldX - baseX
+    // relY = worldY - baseY
+    // col = (relX / (TILE_W/2) + relY / (TILE_H/2)) / 2
+    // row = (relY / (TILE_H/2) - relX / (TILE_W/2)) / 2
+    
+    const relX = worldX - baseX;
+    const relY = worldY - baseY;
+    const targetCol = Math.round((relX / (TILE_W / 2) + relY / (TILE_H / 2)) / 2);
+    const targetRow = Math.round((relY / (TILE_H / 2) - relX / (TILE_W / 2)) / 2);
+
+    if (this.isWalkable(targetCol, targetRow)) {
+      this.localX = targetCol;
+      this.localY = targetRow;
+      // Auto resume follow on click
+      const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
+      if (localAvatar) {
+        this.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+        this.mapScene.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+      }
+    }
   }
 
   private getIsoPos(col: number, row: number) {
@@ -141,14 +202,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Adjust camera zoom. Delta > 0 = zoom in, Delta < 0 = zoom out */
-  public adjustZoom(delta: number) {
+  public adjustZoom(delta: number, _ptr?: Phaser.Input.Pointer) {
     const MIN_ZOOM = 0.4;
     const MAX_ZOOM = 3.0;
     const current = this.cameras.main.zoom;
     const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, current + delta));
+    
     this.cameras.main.setZoom(next);
     if (this.mapScene?.cameras?.main) {
       this.mapScene.cameras.main.setZoom(next);
+    }
+
+    // Centrar en el jugador después del zoom
+    const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
+    if (localAvatar) {
+       this.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+       if (this.mapScene?.cameras?.main) {
+         this.mapScene.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+       }
     }
   }
 
@@ -156,33 +227,35 @@ export class GameScene extends Phaser.Scene {
     return this.cameras.main.zoom;
   }
 
+  /** Check walkability against the live dynamic grid */
   private isWalkable(gridX: number, gridY: number): boolean {
-    const col = Math.round(gridX);
-    const row = Math.round(gridY);
-    if (row < 0 || row >= MAP_LAYOUT.length || col < 0 || col >= MAP_LAYOUT[0].length) return false;
-    return TILE_WALKABLE[MAP_LAYOUT[row][col]] ?? false;
+    return isGridWalkable(gridX, gridY);
   }
 
-  update(time: number, delta: number) {
-    // Movement
+  /** Called by React when admin changes the map layout (Realtime) */
+  public reloadMap(data: MapData) {
+    this.mapData = data;
+    setActiveMapData(data);
+    this.mapScene?.reloadMap(data);
+  }
+
+  update(_time: number, delta: number) {
     let dx = 0, dy = 0;
     let newDir = this.localDirection;
 
-    if (this.cursors.up.isDown) { dy = -this.moveSpeed; newDir = 'up'; }
-    if (this.cursors.down.isDown) { dy = this.moveSpeed; newDir = 'down'; }
-    if (this.cursors.left.isDown) { dx = -this.moveSpeed; newDir = 'left'; }
-    if (this.cursors.right.isDown) { dx = this.moveSpeed; newDir = 'right'; }
+    if (this.cursors.up.isDown)    { dy = -this.moveSpeed; newDir = 'up'; }
+    if (this.cursors.down.isDown)  { dy =  this.moveSpeed; newDir = 'down'; }
+    if (this.cursors.left.isDown)  { dx = -this.moveSpeed; newDir = 'left'; }
+    if (this.cursors.right.isDown) { dx =  this.moveSpeed; newDir = 'right'; }
 
     if (dx !== 0 || dy !== 0) {
       const nextX = this.localX + dx;
       const nextY = this.localY + dy;
-
       if (this.isWalkable(nextX, this.localY)) this.localX = nextX;
       if (this.isWalkable(this.localX, nextY)) this.localY = nextY;
       this.localDirection = newDir;
     }
 
-    // Update local avatar target
     const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
     if (localAvatar) {
       localAvatar.targetX = this.localX;
@@ -190,18 +263,13 @@ export class GameScene extends Phaser.Scene {
       localAvatar.direction = this.localDirection;
     }
 
-    // Update all avatars
     this.avatarManager.update(delta);
 
-    // If following player, keep map in sync automatically
-    if (!this.isDragging) {
-      if (this.mapScene && this.mapScene.cameras && this.mapScene.cameras.main) {
-        this.mapScene.cameras.main.scrollX = this.cameras.main.scrollX;
-        this.mapScene.cameras.main.scrollY = this.cameras.main.scrollY;
-      }
+    if (!this.isDragging && this.mapScene?.cameras?.main) {
+      this.mapScene.cameras.main.scrollX = this.cameras.main.scrollX;
+      this.mapScene.cameras.main.scrollY = this.cameras.main.scrollY;
     }
 
-    // Sync position
     this.syncTimer += delta;
     if (this.syncTimer >= SYNC_INTERVAL) {
       this.syncTimer = 0;
@@ -209,7 +277,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // Called from React to update remote avatars
   updateRemoteAvatar(pos: AvatarPosition, config?: AvatarConfig) {
     if (pos.user_id === this.localAvatarId) return;
     this.avatarManager.updateAvatar(

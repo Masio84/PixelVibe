@@ -2,15 +2,19 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { UserProfile, AvatarPosition, ChatMessage } from '@/lib/types';
+import type { MapData } from '@/game/map';
+import { DEFAULT_MAP_DATA } from '@/game/map';
 import { createClient } from '@/lib/supabase/client';
 
 interface PhaserGameProps {
   profile: UserProfile;
+  workspaceId: string;
   avatarConfig?: any;
+  mapData?: MapData;
   onChatMessage?: (msg: ChatMessage) => void;
 }
 
-export default function PhaserGame({ profile, avatarConfig, onChatMessage }: PhaserGameProps) {
+export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData, onChatMessage }: PhaserGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<import('phaser').Game | null>(null);
   const gameSceneRef = useRef<import('@/game/scenes/GameScene').GameScene | null>(null);
@@ -20,12 +24,14 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
   const onChatMessageRef = useRef(onChatMessage);
   const profileRef = useRef(profile);
   const avatarConfigRef = useRef(avatarConfig);
+  const mapDataRef = useRef<MapData>(mapData ?? DEFAULT_MAP_DATA);
 
   useEffect(() => {
     onChatMessageRef.current = onChatMessage;
     profileRef.current = profile;
     avatarConfigRef.current = avatarConfig;
-  }, [onChatMessage, profile, avatarConfig]);
+    mapDataRef.current = mapData ?? DEFAULT_MAP_DATA;
+  }, [onChatMessage, profile, avatarConfig, mapData]);
 
   const avatarConfigsCache = useRef<Map<string, any>>(new Map());
 
@@ -34,7 +40,7 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
     if (!currentProfile) return;
     const { error } = await supabase.from('avatar_positions').upsert({
       user_id: currentProfile.id,
-      room_id: 'main',
+      room_id: workspaceId,
       x,
       y,
       direction,
@@ -46,7 +52,7 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
     if (error) {
       console.error('Supabase Upsert Error:', error);
     }
-  }, [supabase]);
+  }, [supabase, workspaceId]);
 
   useEffect(() => {
     setMounted(true);
@@ -84,9 +90,10 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
         game.scene.start('GameScene', {
           profile: profileRef.current,
           avatarConfig: avatarConfigRef.current,
+          mapData: mapDataRef.current,
           events: {
             onPositionUpdate: handlePositionUpdate,
-            onChatMessage: (msg: string) => {
+            onChatMessage: (_msg: string) => {
               // handled by React UI
             },
           },
@@ -99,12 +106,12 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
 
     // Supabase Realtime: avatar positions
     const posChannel = supabase
-      .channel('avatar_positions')
+      .channel(`avatar_positions_${workspaceId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'avatar_positions',
-        filter: `room_id=eq.main`,
+        filter: `room_id=eq.${workspaceId}`,
       }, async (payload) => {
         const pos = payload.new as AvatarPosition;
         if (pos && gameSceneRef.current) {
@@ -167,18 +174,44 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
 
     // Supabase Realtime: chat messages
     const chatChannel = supabase
-      .channel('messages')
+      .channel(`messages_${workspaceId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
-        filter: `room_id=eq.main`,
+        filter: `room_id=eq.${workspaceId}`,
       }, (payload) => {
         const msg = payload.new as ChatMessage;
         if (msg && gameSceneRef.current) {
           gameSceneRef.current.showChatMessage(msg.user_id, msg.content);
         }
         onChatMessageRef.current?.(msg);
+      })
+      .subscribe();
+
+    // Supabase Realtime: building layout changes (admin→all users)
+    const layoutChannel = supabase
+      .channel(`building_layout_changes_${workspaceId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'building_layouts',
+        filter: `workspace_id=eq.${workspaceId}`,
+      }, (payload) => {
+        const newLayout = payload.new as any;
+        if (newLayout?.is_active && newLayout?.grid && gameSceneRef.current) {
+          const mapData: MapData = {
+            id: newLayout.id,
+            name: newLayout.name,
+            width: newLayout.width,
+            height: newLayout.height,
+            grid: newLayout.grid,
+            zones: newLayout.zones ?? [],
+            furniture: newLayout.furniture ?? [],
+          };
+          gameSceneRef.current.reloadMap(mapData);
+          console.log('[PixelVibe] 🗺️ Map reloaded:', mapData.name);
+        }
       })
       .subscribe();
 
@@ -193,6 +226,7 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
       window.removeEventListener('resize', handleResize);
       supabase.removeChannel(posChannel);
       supabase.removeChannel(chatChannel);
+      supabase.removeChannel(layoutChannel);
       if (game) {
         game.destroy(true);
         gameRef.current = null;
@@ -207,8 +241,9 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%', position: 'relative' }}
+      style={{ width: '100%', height: '100%', position: 'relative', outline: 'none' }}
       id="phaser-container"
+      tabIndex={0}
     >
       {/* Zoom Controls */}
       <div style={{

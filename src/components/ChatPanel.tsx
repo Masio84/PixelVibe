@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 
 interface ChatPanelProps {
   profile: UserProfile;
+  workspaceId: string;
   messages: ChatMessage[];
   localPosition: { x: number; y: number };
 }
@@ -21,7 +22,7 @@ function formatTime(dateStr: string) {
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-export default function ChatPanel({ profile, messages, localPosition }: ChatPanelProps) {
+export default function ChatPanel({ profile, workspaceId, messages, localPosition }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isOpen, setIsOpen] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -43,7 +44,7 @@ export default function ChatPanel({ profile, messages, localPosition }: ChatPane
 
     await supabase.from('messages').insert({
       user_id: profile.id,
-      room_id: 'main',
+      room_id: workspaceId,
       content,
       x: localPosition.x,
       y: localPosition.y,

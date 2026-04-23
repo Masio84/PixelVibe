@@ -104,3 +104,11 @@ export interface ChatMessage {
   created_at?: string;
   name?: string;
 }
+
+export interface Workspace {
+  id: string;
+  name: string;
+  pin_code?: string;
+  admin_id: string;
+  created_at?: string;
+}

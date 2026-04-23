@@ -1,236 +1,208 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
-import type { UserProfile, ChatMessage, AvatarPosition } from '@/lib/types';
-import HUD from '@/components/HUD';
-import ChatPanel from '@/components/ChatPanel';
-import ProfileModal from '@/components/ProfileModal';
+import type { Workspace, UserProfile } from '@/lib/types';
 
-// Dynamically import Phaser game (client-only)
-const PhaserGame = dynamic(() => import('@/components/PhaserGame'), {
-  ssr: false,
-  loading: () => (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100%', fontFamily: 'var(--font-pixel)', fontSize: '0.6rem',
-      color: 'rgba(255,255,255,0.5)', flexDirection: 'column', gap: '1rem',
-    }}>
-      <div style={{ fontSize: '2rem', animation: 'float 2s ease-in-out infinite' }}>🕹️</div>
-      <div>Cargando oficina...</div>
-    </div>
-  ),
-});
-
-const DEFAULT_COLORS = ['#6c63ff', '#ff6584', '#f9a826', '#43b97f', '#00b4d8'];
-
-function getRandomColor() {
-  return DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)];
-}
-
-function buildProfileFromSession(user: any): UserProfile {
-  const stored = typeof window !== 'undefined' ? localStorage.getItem('pixelvibe_profile') : null;
-  if (stored) {
-    const parsed = JSON.parse(stored);
-    if (parsed.id === user.id) return parsed;
-  }
-  return {
-    id: user.id,
-    email: user.email || '',
-    name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Pixel User',
-    avatar_color: getRandomColor(),
-  };
-}
-
-export default function OfficePage() {
+export default function OfficeLobbyPage() {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [avatarConfig, setAvatarConfig] = useState<any>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<AvatarPosition[]>([]);
-  const [showProfile, setShowProfile] = useState(false);
-  const [localPosition, setLocalPosition] = useState({ x: 8, y: 8 });
-  const [loading, setLoading] = useState(true);
   const supabase = createClient();
-  const positionRef = useRef({ x: 8, y: 8 });
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [pinInput, setPinInput] = useState<{ [key: string]: string }>({});
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        router.replace('/');
+      if (!session) {
+        router.push('/');
         return;
       }
 
-      // Check if user has configured their avatar
-      const { data: avatarConfig } = await supabase
-        .from('avatar_config')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      if (!avatarConfig) {
-        // First time user — redirect to character creator
-        router.replace('/create-avatar');
-        return;
-      }
-
-      const p = buildProfileFromSession(session.user);
-
-      // Fetch role from DB
-      const { data: dbUser } = await supabase
+      // Fetch user profile to check role
+      const { data: profile } = await supabase
         .from('users')
-        .select('role')
-        .eq('id', p.id)
-        .maybeSingle();
-      if (dbUser?.role) p.role = dbUser.role;
-
-      localStorage.setItem('pixelvibe_profile', JSON.stringify(p));
-
-      // Upsert user in DB
-      await supabase.from('users').upsert({
-        id: p.id,
-        email: p.email,
-        name: p.name,
-        avatar_color: p.avatar_color,
-        created_at: new Date().toISOString(),
-      });
-
-      // Load recent messages
-      const { data: recentMsgs } = await supabase
-        .from('messages')
         .select('*')
-        .eq('room_id', 'main')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .eq('id', session.user.id)
+        .single();
+      
+      setUserProfile(profile);
 
-      if (recentMsgs) {
-        setMessages(recentMsgs.reverse());
-      }
-
-      // Fetch online users (active in last 30s)
-      const { data: positions } = await supabase
-        .from('avatar_positions')
+      // Fetch all workspaces
+      const { data: ws } = await supabase
+        .from('workspaces')
         .select('*')
-        .eq('room_id', 'main')
-        .gte('updated_at', new Date(Date.now() - 30000).toISOString());
-
-      setOnlineUsers(positions || []);
-      setProfile(p);
-      setAvatarConfig(avatarConfig);
+        .order('created_at', { ascending: false });
+      
+      setWorkspaces(ws || []);
       setLoading(false);
     };
 
     init();
-
-    // Subscribe to avatar_positions for HUD updates
-    const channel = supabase
-      .channel('hud_positions')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'avatar_positions',
-        filter: 'room_id=eq.main',
-      }, (payload) => {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const newUser = payload.new as AvatarPosition;
-          setOnlineUsers((prev) => {
-            const index = prev.findIndex((u) => u.user_id === newUser.user_id);
-            if (index >= 0) {
-              const next = [...prev];
-              next[index] = newUser;
-              return next;
-            }
-            return [...prev, newUser];
-          });
-        } else if (payload.eventType === 'DELETE') {
-          const oldUser = payload.old as AvatarPosition;
-          setOnlineUsers((prev) => prev.filter((u) => u.user_id !== oldUser.user_id));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [router, supabase]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (profile) {
-        supabase.from('avatar_positions').delete()
-          .eq('user_id', profile.id).eq('room_id', 'main');
+  const handleJoin = (ws: Workspace) => {
+    if (ws.pin_code) {
+      if (pinInput[ws.id] === ws.pin_code) {
+        router.push(`/office/${ws.id}`);
+      } else {
+        setError(`NIP incorrecto para ${ws.name}`);
+        setTimeout(() => setError(null), 3000);
       }
-    };
-  }, [profile, supabase]);
-
-  const handlePositionUpdate = useCallback((x: number, y: number, direction: string) => {
-    positionRef.current = { x, y };
-    setLocalPosition({ x, y });
-  }, []);
-
-  const handleChatMessage = useCallback((msg: ChatMessage) => {
-    setMessages((prev) => {
-      // Evitar duplicados por si acaso
-      if (prev.some((m) => m.id === msg.id && msg.id)) return prev;
-      return [...prev.slice(-49), msg];
-    });
-  }, []);
-
-  const handleProfileSave = (updated: UserProfile) => {
-    setProfile(updated);
+    } else {
+      router.push(`/office/${ws.id}`);
+    }
   };
 
-  if (loading || !profile) {
+  if (loading) {
     return (
-      <div style={{
-        height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'var(--bg-deep)', flexDirection: 'column', gap: '1rem',
-      }}>
-        <div style={{ fontSize: '2.5rem' }}>🎮</div>
-        <div style={{ fontFamily: 'var(--font-pixel)', fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)' }}>
-          Iniciando sesión...
-        </div>
+      <div className="lobby-container">
+        <div className="loading">Cargando salas de PixelVibe...</div>
       </div>
     );
   }
 
   return (
-    <div className="office-layout">
-      <div className="office-canvas">
-        {/* Phaser Canvas */}
-        <PhaserGame
-          profile={profile}
-          avatarConfig={avatarConfig}
-          onChatMessage={handleChatMessage}
-        />
+    <div className="lobby-container">
+      <header className="lobby-header">
+        <h1>PixelVibe Lobby 🏢</h1>
+        <p>Selecciona un espacio de trabajo para unirte</p>
+      </header>
 
-        {/* HUD Overlay */}
-        <HUD
-          profile={profile}
-          users={onlineUsers}
-          onOpenProfile={() => setShowProfile(true)}
-        />
+      {error && <div className="error-toast">{error}</div>}
 
-        {/* Chat Panel */}
-        <ChatPanel
-          profile={profile}
-          messages={messages}
-          localPosition={localPosition}
-        />
+      <div className="workspace-grid">
+        <div className="workspace-card public-ws">
+          <div className="ws-icon">🌍</div>
+          <h3>Oficina Pública</h3>
+          <p>Entrada libre para todos</p>
+          <button className="join-btn" onClick={() => router.push('/office/public-room')}>Entrar</button>
+        </div>
+
+        {workspaces.map((ws) => (
+          <div key={ws.id} className="workspace-card">
+            <div className="ws-icon">{ws.pin_code ? '🔒' : '🔓'}</div>
+            <h3>{ws.name}</h3>
+            {ws.pin_code ? (
+              <div className="pin-entry">
+                <input
+                  type="password"
+                  maxLength={4}
+                  placeholder="PIN"
+                  value={pinInput[ws.id] || ''}
+                  onChange={(e) => setPinInput({ ...pinInput, [ws.id]: e.target.value.replace(/\D/g, '') })}
+                />
+                <button onClick={() => handleJoin(ws)}>Entrar</button>
+              </div>
+            ) : (
+              <button className="join-btn" onClick={() => handleJoin(ws)}>Unirse</button>
+            )}
+          </div>
+        ))}
+
+        {userProfile?.role === 'admin' || userProfile?.role === 'superadmin' ? (
+          <div className="workspace-card create-new" onClick={() => router.push('/admin/workspaces')}>
+            <div className="ws-icon">➕</div>
+            <h3>Crear nuevo grupo</h3>
+            <p>Gestionar espacios</p>
+          </div>
+        ) : null}
       </div>
 
-      {/* Profile Modal */}
-      {showProfile && (
-        <ProfileModal
-          profile={profile}
-          onClose={() => setShowProfile(false)}
-          onSave={handleProfileSave}
-        />
-      )}
+      <style jsx>{`
+        .lobby-container {
+          min-height: 100vh;
+          background: #0f0f1e;
+          color: white;
+          padding: 2rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-family: 'Inter', sans-serif;
+        }
+        .lobby-header {
+          text-align: center;
+          margin-bottom: 3rem;
+        }
+        .lobby-header h1 {
+          font-size: 2.5rem;
+          margin-bottom: 0.5rem;
+          background: linear-gradient(135deg, #6c63ff, #ff6584);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .workspace-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 2rem;
+          width: 100%;
+          max-width: 1000px;
+        }
+        .workspace-card {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 16px;
+          padding: 2rem;
+          text-align: center;
+          transition: transform 0.3s, border-color 0.3s;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .workspace-card:hover {
+          transform: translateY(-5px);
+          border-color: #6c63ff;
+        }
+        .ws-icon {
+          font-size: 3rem;
+        }
+        .join-btn, .pin-entry button {
+          background: #6c63ff;
+          color: white;
+          border: none;
+          padding: 0.8rem;
+          border-radius: 8px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .join-btn:hover, .pin-entry button:hover {
+          background: #5a52d4;
+        }
+        .pin-entry {
+          display: flex;
+          gap: 0.5rem;
+        }
+        .pin-entry input {
+          width: 60px;
+          background: rgba(0,0,0,0.3);
+          border: 1px solid rgba(255,255,255,0.2);
+          color: white;
+          text-align: center;
+          border-radius: 8px;
+          outline: none;
+        }
+        .error-toast {
+          background: #ff4757;
+          color: white;
+          padding: 0.8rem 2rem;
+          border-radius: 8px;
+          margin-bottom: 2rem;
+          animation: shake 0.5s;
+        }
+        .create-new {
+          border: 2px dashed rgba(255,255,255,0.2);
+          cursor: pointer;
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-10px); }
+          75% { transform: translateX(10px); }
+        }
+      `}</style>
     </div>
   );
 }
