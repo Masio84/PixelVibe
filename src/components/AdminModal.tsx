@@ -82,7 +82,22 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId);
-    if (!error) setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
+    if (!error) {
+      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as any } : u));
+      alert('Rol global actualizado');
+    } else {
+      alert('Error de permisos: Solo un Superadmin puede cambiar roles globales. Error: ' + error.message);
+    }
+  };
+
+  const handleWorkspaceAdminChange = async (workspaceId: string, newAdminId: string) => {
+    const { error } = await supabase.from('workspaces').update({ admin_id: newAdminId }).eq('id', workspaceId);
+    if (!error) {
+      setWorkspaces(workspaces.map(w => w.id === workspaceId ? { ...w, admin_id: newAdminId } : w));
+      alert('Líder del grupo actualizado');
+    } else {
+      alert('Error al actualizar líder: ' + error.message);
+    }
   };
 
   const handleSaveMap = async (data: MapData, shouldClose: boolean = false) => {
@@ -181,18 +196,30 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
             <div className="tab-pane">
                <table className="admin-table">
                 <thead>
-                  <tr><th>Nombre</th><th>NIP</th></tr>
+                  <tr><th>Nombre</th><th>NIP</th><th>Líder del Grupo (Admin)</th></tr>
                 </thead>
                 <tbody>
                   {workspaces.map(w => (
                     <tr key={w.id}>
                       <td>{w.name}</td>
                       <td>{w.pin_code || 'Libre'}</td>
+                      <td>
+                        <select 
+                          value={w.admin_id} 
+                          onChange={(e) => handleWorkspaceAdminChange(w.id, e.target.value)}
+                        >
+                          {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                          ))}
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p style={{marginTop: '1rem', fontSize: '0.8rem', color: '#888'}}>Usa el panel de gestión para crear grupos nuevos.</p>
+              <p style={{marginTop: '1rem', fontSize: '0.8rem', color: '#888'}}>
+                El Líder del Grupo tiene permisos para editar el mapa de ese espacio específico.
+              </p>
             </div>
           )}
 
