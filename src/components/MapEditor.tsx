@@ -90,6 +90,11 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
     drawCanvas();
   }, [drawCanvas]);
 
+  // Sync back to parent whenever local state changes
+  useEffect(() => {
+    onSave(mapData);
+  }, [mapData, onSave]);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
     paintTile(e);
@@ -115,15 +120,18 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
 
     if (x >= 0 && x < mapData.width && y >= 0 && y < mapData.height) {
       if (selectedTool === -1) {
-        setMapData(prev => ({ ...prev, spawn_x: x, spawn_y: y }));
+        if (mapData.spawn_x !== x || mapData.spawn_y !== y) {
+          setMapData(prev => ({ ...prev, spawn_x: x, spawn_y: y }));
+        }
         return;
       }
 
       if (mapData.grid[y][x] !== selectedTool) {
         setMapData((prev) => {
-          const next = { ...prev };
-          next.grid[y][x] = selectedTool;
-          return next;
+          const newGrid = [...prev.grid];
+          newGrid[y] = [...newGrid[y]];
+          newGrid[y][x] = selectedTool;
+          return { ...prev, grid: newGrid };
         });
       }
     }
