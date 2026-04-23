@@ -208,7 +208,7 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
                           <button 
                             className="btn-action save" 
                             style={{padding: '2px 8px', fontSize: '0.7rem'}}
-                            onClick={() => handleRoleChange(u.id, u.role)}
+                            onClick={() => handleRoleChange(u.id, u.role || 'user')}
                           >
                             Guardar
                           </button>
