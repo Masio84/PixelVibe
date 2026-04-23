@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Workspace } from '@/lib/types';
 
@@ -15,11 +15,7 @@ export default function WorkspacesAdminPage() {
   const [newName, setNewName] = useState('');
   const [newPin, setNewPin] = useState('');
 
-  useEffect(() => {
-    fetchWorkspaces();
-  }, []);
-
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -34,7 +30,11 @@ export default function WorkspacesAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();

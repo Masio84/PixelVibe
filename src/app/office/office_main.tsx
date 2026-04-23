@@ -235,8 +235,11 @@ export default function OfficePage() {
         {/* HUD Overlay */}
         <HUD
           profile={profile}
+          workspaceId="main"
+          workspaceName="Oficina Pública"
           users={onlineUsers}
           onOpenProfile={() => setShowProfile(true)}
+          onOpenAdmin={() => {}}
         />
 
         {/* Chat Panel */}
