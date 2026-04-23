@@ -25,10 +25,12 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
   const [currentWorkspaceName, setCurrentWorkspaceName] = useState<string>('');
   const [mapEditorData, setMapEditorData] = useState<MapData | null>(null);
   const [originalMapData, setOriginalMapData] = useState<MapData | null>(null);
+  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
-  useEffect(() => {
-    console.log('AdminModal cargado con perfil:', profile);
-  }, [profile]);
+  const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -97,14 +99,14 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
 
     if (error) {
       console.error('Error de Supabase:', error);
-      alert(`Error crítico (${status}): ${error.message}`);
+      showNotification(`Error crítico (${status}): ${error.message}`, 'error');
     } else if (data && data.length > 0) {
       console.log('Cambio exitoso:', data[0]);
       setUsers(users.map(u => u.id === userId ? { ...u, role: data[0].role as any } : u));
-      alert(`¡Éxito! El usuario ${data[0].name} ahora es ${data[0].role}.`);
+      showNotification(`¡Éxito! El usuario ${data[0].name} ahora es ${data[0].role}.`, 'success');
     } else {
       console.warn('Ninguna fila actualizada. Status:', status);
-      alert('Error 403: No tienes permisos para modificar este usuario. Tu cuenta no tiene el rango de Superadmin en la base de datos.');
+      showNotification('Error 403: No tienes permisos para modificar este usuario.', 'error');
     }
     setLoading(false);
   };
@@ -113,9 +115,9 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
     const { error } = await supabase.from('workspaces').update({ admin_id: newAdminId }).eq('id', workspaceId);
     if (!error) {
       setWorkspaces(workspaces.map(w => w.id === workspaceId ? { ...w, admin_id: newAdminId } : w));
-      alert('Líder del grupo actualizado');
+      showNotification('Líder del grupo actualizado', 'success');
     } else {
-      alert('Error al actualizar líder: ' + error.message);
+      showNotification('Error al actualizar líder: ' + error.message, 'error');
     }
   };
 
@@ -123,7 +125,7 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
     // Validar que el punto de reaparicion sea en suelo caminable
     const spawnTile = data.grid[data.spawn_y ?? 8]?.[data.spawn_x ?? 8];
     if (!isTileWalkable(spawnTile)) {
-      alert('Error: El punto de reaparicion esta sobre un muro o mueble. Muevelo a un area despejada.');
+      showNotification('Error: El punto de reaparición está sobre un muro o mueble. Muévelo a un área despejada.', 'error');
       return;
     }
 
@@ -151,11 +153,11 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
       
       if (error) throw error;
       
-      alert('Mapa actualizado correctamente');
+      showNotification('Mapa actualizado correctamente', 'success');
       setOriginalMapData(JSON.parse(JSON.stringify(data)));
       if (shouldClose) onClose();
     } catch (err: any) {
-      alert('Error al guardar: ' + err.message);
+      showNotification('Error al guardar: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -194,6 +196,11 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         </nav>
 
         <main className="modal-body">
+          {notification && (
+            <div className={`notification-bar ${notification.type}`}>
+              {notification.type === 'success' ? '✓' : '⚠️'} {notification.message}
+            </div>
+          )}
           {loading && <div className="loading-spinner">Cargando...</div>}
           
           {activeTab === 'users' && (
@@ -422,6 +429,33 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
         @media (max-width: 768px) {
           .admin-modal-content { height: 95vh; width: 100%; }
           .modal-tabs button { padding: 0.5rem; font-size: 0.8rem; }
+        }
+
+        .notification-bar {
+          padding: 0.8rem;
+          margin-bottom: 1rem;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          animation: slideDown 0.3s ease-out;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .notification-bar.success {
+          background: rgba(74, 222, 128, 0.2);
+          color: #4ade80;
+          border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+        .notification-bar.error {
+          background: rgba(248, 113, 113, 0.2);
+          color: #f87171;
+          border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+
+        @keyframes slideDown {
+          from { transform: translateY(-10px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
         }
       `}</style>
     </div>
