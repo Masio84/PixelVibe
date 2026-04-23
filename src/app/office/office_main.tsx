@@ -226,6 +226,7 @@ export default function OfficePage() {
         {/* Phaser Canvas */}
         <PhaserGame
           profile={profile}
+          workspaceId="main"
           avatarConfig={avatarConfig}
           mapData={mapData}
           onChatMessage={handleChatMessage}

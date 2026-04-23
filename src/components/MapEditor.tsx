@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { MapData } from '@/game/map';
 import { TILE_WALKABLE } from '@/game/map';
 
@@ -48,11 +48,7 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
   const [selectedTool, setSelectedTool] = useState<number>(0); // tile id
   const [isDrawing, setIsDrawing] = useState(false);
 
-  useEffect(() => {
-    drawCanvas();
-  }, [mapData]);
-
-  const drawCanvas = () => {
+  const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -88,7 +84,11 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  };
+  }, [mapData]);
+
+  useEffect(() => {
+    drawCanvas();
+  }, [drawCanvas]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);

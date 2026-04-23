@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile, Workspace } from '@/lib/types';
 import type { MapData } from '@/game/map';
@@ -23,27 +23,21 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [mapEditorData, setMapEditorData] = useState<MapData | null>(null);
 
-  useEffect(() => {
-    if (activeTab === 'users') fetchUsers();
-    if (activeTab === 'workspaces') fetchWorkspaces();
-    if (activeTab === 'architect') fetchWorkspaceLayout();
-  }, [activeTab]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false });
     if (data) setUsers(data);
     setLoading(false);
-  };
+  }, [supabase]);
 
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from('workspaces').select('*').order('created_at', { ascending: false });
     if (data) setWorkspaces(data);
     setLoading(false);
-  };
+  }, [supabase]);
 
-  const fetchWorkspaceLayout = async () => {
+  const fetchWorkspaceLayout = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('building_layouts')
@@ -66,7 +60,13 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
       setMapEditorData(ALL_TEMPLATES[0]);
     }
     setLoading(false);
-  };
+  }, [supabase, currentWorkspaceId]);
+
+  useEffect(() => {
+    if (activeTab === 'users') fetchUsers();
+    if (activeTab === 'workspaces') fetchWorkspaces();
+    if (activeTab === 'architect') fetchWorkspaceLayout();
+  }, [activeTab, fetchUsers, fetchWorkspaces, fetchWorkspaceLayout]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId);

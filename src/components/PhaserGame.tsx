@@ -233,7 +233,7 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
         gameSceneRef.current = null;
       }
     };
-  }, [mounted, handlePositionUpdate, supabase]);
+  }, [mounted, handlePositionUpdate, supabase, workspaceId]);
 
   // Expose scene for chat
   (PhaserGame as any).getScene = () => gameSceneRef.current;
