@@ -97,6 +97,9 @@ export class AvatarManager {
     let entry = this.avatars.get(userId);
     if (!entry) {
       entry = this.createAvatar(userId, name, avatarConfig ?? null, x, y);
+    } else if (avatarConfig) {
+      // If config changed, update compositor pieces
+      entry.compositor.updateConfig(avatarConfig);
     }
     entry.targetX = x;
     entry.targetY = y;

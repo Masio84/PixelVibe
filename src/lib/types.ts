@@ -91,6 +91,7 @@ export interface AvatarPosition {
   updated_at?: string;
   name?: string;
   avatar_color?: string;
+  avatar_config?: AvatarConfig;
 }
 
 export interface ChatMessage {

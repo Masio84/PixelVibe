@@ -223,8 +223,14 @@ html, body {
   left: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   pointer-events: auto;
+}
+
+.hud-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .hud-logo {

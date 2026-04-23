@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile } from '@/lib/types';
+import { getURL } from '@/lib/utils';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function LandingPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${getURL()}auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

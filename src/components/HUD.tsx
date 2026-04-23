@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, AvatarPosition } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 
 interface HUDProps {
   profile: UserProfile;
-  onlineCount: number;
+  users: AvatarPosition[];
   onOpenProfile: () => void;
 }
 
@@ -25,9 +25,10 @@ function useOnlineDuration() {
   return `En línea hace ${mins} min`;
 }
 
-export default function HUD({ profile, onlineCount, onOpenProfile }: HUDProps) {
+export default function HUD({ profile, users, onOpenProfile }: HUDProps) {
   const duration = useOnlineDuration();
   const supabase = createClient();
+  const onlineCount = users.length;
 
   const handleLogout = async () => {
     // Remove avatar position
@@ -45,12 +46,27 @@ export default function HUD({ profile, onlineCount, onOpenProfile }: HUDProps) {
           <span className="hud-logo-icon">🎮</span>
           <span className="hud-logo-text">PixelVibe</span>
         </div>
-        <div className="hud-user-info">
-          <span className="hud-avatar-dot" style={{ background: profile.avatar_color }} />
-          <span className="hud-user-name">{profile.name}</span>
-          <span className="hud-separator">·</span>
-          <span className="hud-duration">{duration}</span>
+        
+        <div className="hud-users-list">
+          {users.map((u) => (
+            <div key={u.user_id} className="hud-user-info">
+              <span 
+                className="hud-avatar-dot" 
+                style={{ background: u.avatar_color || '#6c63ff' }} 
+              />
+              <span className="hud-user-name">
+                {u.name} {u.user_id === profile.id && '(Tú)'}
+              </span>
+              {u.user_id === profile.id && (
+                <>
+                  <span className="hud-separator">·</span>
+                  <span className="hud-duration">{duration}</span>
+                </>
+              )}
+            </div>
+          ))}
         </div>
+
         <div className="hud-online-count">
           <span className="hud-online-dot" />
           {onlineCount} {onlineCount === 1 ? 'persona' : 'personas'} en línea
@@ -66,7 +82,6 @@ export default function HUD({ profile, onlineCount, onOpenProfile }: HUDProps) {
           🚪 Salir
         </button>
       </div>
-
     </div>
   );
 }

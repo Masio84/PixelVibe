@@ -49,7 +49,7 @@ export default function OfficePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [onlineCount, setOnlineCount] = useState(1);
+  const [onlineUsers, setOnlineUsers] = useState<AvatarPosition[]>([]);
   const [showProfile, setShowProfile] = useState(false);
   const [localPosition, setLocalPosition] = useState({ x: 8, y: 8 });
   const [loading, setLoading] = useState(true);
@@ -110,20 +110,51 @@ export default function OfficePage() {
         setMessages(recentMsgs.reverse());
       }
 
-      // Count online (avatar_positions updated in last 30s)
-      const { count } = await supabase
+      // Fetch online users (active in last 30s)
+      const { data: positions } = await supabase
         .from('avatar_positions')
-        .select('*', { count: 'exact', head: true })
+        .select('*')
         .eq('room_id', 'main')
         .gte('updated_at', new Date(Date.now() - 30000).toISOString());
 
-      setOnlineCount(Math.max(1, count || 1));
+      setOnlineUsers(positions || []);
       setProfile(p);
       setAvatarConfig(avatarConfig);
       setLoading(false);
     };
 
     init();
+
+    // Subscribe to avatar_positions for HUD updates
+    const channel = supabase
+      .channel('hud_positions')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'avatar_positions',
+        filter: 'room_id=eq.main',
+      }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const newUser = payload.new as AvatarPosition;
+          setOnlineUsers((prev) => {
+            const index = prev.findIndex((u) => u.user_id === newUser.user_id);
+            if (index >= 0) {
+              const next = [...prev];
+              next[index] = newUser;
+              return next;
+            }
+            return [...prev, newUser];
+          });
+        } else if (payload.eventType === 'DELETE') {
+          const oldUser = payload.old as AvatarPosition;
+          setOnlineUsers((prev) => prev.filter((u) => u.user_id !== oldUser.user_id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [router, supabase]);
 
   // Cleanup on unmount
@@ -180,7 +211,7 @@ export default function OfficePage() {
         {/* HUD Overlay */}
         <HUD
           profile={profile}
-          onlineCount={onlineCount}
+          users={onlineUsers}
           onOpenProfile={() => setShowProfile(true)}
         />
 

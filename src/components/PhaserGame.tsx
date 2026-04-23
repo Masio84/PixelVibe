@@ -27,6 +27,8 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
     avatarConfigRef.current = avatarConfig;
   }, [onChatMessage, profile, avatarConfig]);
 
+  const avatarConfigsCache = useRef<Map<string, any>>(new Map());
+
   const handlePositionUpdate = useCallback(async (x: number, y: number, direction: string) => {
     const currentProfile = profileRef.current;
     if (!currentProfile) return;
@@ -39,6 +41,7 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
       updated_at: new Date().toISOString(),
       name: currentProfile.name,
       avatar_color: currentProfile.avatar_color,
+      avatar_config: avatarConfigRef.current, // Sending the config
     }, { onConflict: 'user_id,room_id' });
     if (error) {
       console.error('Supabase Upsert Error:', error);
@@ -102,13 +105,61 @@ export default function PhaserGame({ profile, avatarConfig, onChatMessage }: Pha
         schema: 'public',
         table: 'avatar_positions',
         filter: `room_id=eq.main`,
-      }, (payload) => {
+      }, async (payload) => {
         const pos = payload.new as AvatarPosition;
         if (pos && gameSceneRef.current) {
           if (payload.eventType === 'DELETE') {
             gameSceneRef.current.removeRemoteAvatar((payload.old as AvatarPosition).user_id);
           } else {
-            gameSceneRef.current.updateRemoteAvatar(pos);
+            // Check if we have the config in the payload
+            let config = pos.avatar_config;
+            
+            // If not in payload, check cache or fetch from DB
+            if (!config) {
+              if (avatarConfigsCache.current.has(pos.user_id)) {
+                config = avatarConfigsCache.current.get(pos.user_id);
+              } else {
+                const { data } = await supabase
+                  .from('avatar_config')
+                  .select('*')
+                  .eq('user_id', pos.user_id)
+                  .maybeSingle();
+                if (data) {
+                  config = data;
+                  avatarConfigsCache.current.set(pos.user_id, data);
+                }
+              }
+            }
+
+            // Ensure textures are loaded before updating avatar
+            if (config) {
+              const { AvatarCompositor } = await import('@/game/AvatarCompositor');
+              const Phaser = (await import('phaser')).default;
+              
+              const layers = [config.body, config.shoes, config.bottom, config.top, config.hair, ...config.accessories];
+              let needsLoad = false;
+              
+              for (const key of layers) {
+                if (key && !gameSceneRef.current?.textures.exists(key)) {
+                  gameSceneRef.current?.load.spritesheet(key, `/assets/sprites/${key}.png`, {
+                    frameWidth: 32,
+                    frameHeight: 32,
+                  });
+                  needsLoad = true;
+                }
+              }
+              
+              if (needsLoad) {
+                gameSceneRef.current?.load.once('complete', () => {
+                  gameSceneRef.current?.updateRemoteAvatar(pos, config);
+                });
+                gameSceneRef.current?.load.start();
+              } else {
+                gameSceneRef.current?.updateRemoteAvatar(pos, config);
+              }
+            } else {
+              gameSceneRef.current.updateRemoteAvatar(pos);
+            }
           }
         }
       })

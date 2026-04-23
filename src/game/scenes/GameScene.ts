@@ -210,7 +210,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // Called from React to update remote avatars
-  updateRemoteAvatar(pos: AvatarPosition) {
+  updateRemoteAvatar(pos: AvatarPosition, config?: AvatarConfig) {
     if (pos.user_id === this.localAvatarId) return;
     this.avatarManager.updateAvatar(
       pos.user_id,
@@ -218,7 +218,8 @@ export class GameScene extends Phaser.Scene {
       pos.y,
       pos.direction,
       pos.name || 'User',
-      pos.avatar_color || '#6c63ff'
+      pos.avatar_color || '#6c63ff',
+      config
     );
   }
 
