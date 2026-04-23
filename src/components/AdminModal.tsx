@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { UserProfile, Workspace } from '@/lib/types';
 import type { MapData } from '@/game/map';
 import { ALL_TEMPLATES } from '@/lib/mapTemplates';
+import { isTileWalkable } from '@/game/map';
 import MapEditor from './MapEditor';
 
 interface AdminModalProps {
@@ -119,6 +120,13 @@ export default function AdminModal({ profile, currentWorkspaceId, onClose }: Adm
   };
 
   const handleSaveMap = async (data: MapData, shouldClose: boolean = false) => {
+    // Validar que el punto de reaparicion sea en suelo caminable
+    const spawnTile = data.grid[data.spawn_y ?? 8]?.[data.spawn_x ?? 8];
+    if (!isTileWalkable(spawnTile)) {
+      alert('Error: El punto de reaparicion esta sobre un muro o mueble. Muevelo a un area despejada.');
+      return;
+    }
+
     setLoading(true);
     try {
       // Deactivate current

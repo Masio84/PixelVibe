@@ -94,34 +94,16 @@ export function isoToCart(isoX: number, isoY: number) {
 
 export const TILE_WALKABLE: Record<number, boolean> = {
   // Floors
-  0: true,
-  7: true,
-  8: true,
-  9: true,
-  10: true,
-  11: true,
-  12: true, // Garden
-  13: true, // Lobby
-  14: true, // Private office
-  // Furniture / walls
-  1: false, // desk
-  2: false, // chair
-  3: false, // plant
-  4: false, // lamp
-  5: false, // sofa
-  6: false, // wall
-  15: false, // tree
-  16: false, // bush
-  17: false, // bike rack
-  18: false, // vending machine
-  19: false, // reception counter
-  20: false, // monitor desk
-  21: false, // conference table
-  22: false, // whiteboard
-  23: false, // flower pot
-  24: false, // coffee machine
-  25: false, // tv screen
+  0: true, 7: true, 8: true, 9: true, 10: true, 11: true, 12: true, 13: true, 14: true,
+  // Furniture / walls (False by default)
+  1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 15: false, 16: false,
+  17: false, 18: false, 19: false, 20: false, 21: false, 22: false, 23: false, 24: false, 25: false,
 };
+
+/** Helper to check if a specific tile type is walkable */
+export function isTileWalkable(tileId: number): boolean {
+  return TILE_WALKABLE[tileId] ?? false;
+}
 
 // ============================================================
 // Default map generator (32×32) — Fallback if no DB layout
