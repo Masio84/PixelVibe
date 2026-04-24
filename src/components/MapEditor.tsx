@@ -184,8 +184,8 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
                   onClick={() => setSelectedTool(toolId)}
                   title={VOXEL_ASSETS[toolId]?.name || `Tile ID: ${toolId}`}
                   style={{ 
-                    backgroundColor: TILE_COLORS[toolId] || 'transparent',
-                    backgroundImage: toolId >= 100 ? `url(/assets/props/voxel/${VOXEL_ASSETS[toolId]?.file})` : 'none',
+                    backgroundColor: TILE_COLORS[toolId] || 'rgba(255,255,255,0.05)',
+                    backgroundImage: toolId >= 100 ? `url("/assets/props/voxel/${VOXEL_ASSETS[toolId]?.file}")` : 'none',
                     backgroundSize: 'contain',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center'
