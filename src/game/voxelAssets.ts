@@ -1,0 +1,18 @@
+export const VOXEL_ASSETS: Record<number, { name: string, file: string }> = {
+  100: { name: 'Libros', file: 'Books.png' },
+  101: { name: 'Silla 1', file: 'Chair 1.png' },
+  102: { name: 'Silla 2', file: 'Chair 2.png' },
+  103: { name: 'Clóset 1', file: 'Closet 1.png' },
+  104: { name: 'Clóset 2', file: 'Closet 2.png' },
+  105: { name: 'Escritorio 1', file: 'Desk 1.png' },
+  106: { name: 'Escritorio 2', file: 'Desk 2.png' },
+  107: { name: 'Lámpara', file: 'Lamp.png' },
+  108: { name: 'Espejo 1', file: 'Mirror 1.png' },
+  109: { name: 'Espejo 2', file: 'Mirror 2.png' },
+  110: { name: 'Objeto Voxel', file: 'Sprite 1.png' },
+  111: { name: 'Cama 1', file: 'bed 1.png' },
+  112: { name: 'Cama 2', file: 'bed 2.png' },
+  113: { name: 'Estante 1', file: 'shelving 1.png' },
+  114: { name: 'Estante 2', file: 'shelving 2.png' },
+  115: { name: 'Estante Pared', file: 'wall shelving 1.png' },
+};

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { getActiveGrid, TILE_WALKABLE } from '@/game/map';
 import type { MapData } from '@/game/map';
+import { VOXEL_ASSETS } from '@/game/voxelAssets';
 
 // ---- Color palette ----
 const COLORS = {
@@ -68,6 +69,11 @@ export class IsometricScene extends Phaser.Scene {
     this.load.image('monitor_glow',  '/assets/fx/monitor_glow.png');
     this.load.image('particle_steam','/assets/fx/particle_steam.png');
     this.load.image('particle_leaf', '/assets/fx/particle_leaf.png');
+
+    // Preload voxel props
+    Object.entries(VOXEL_ASSETS).forEach(([id, info]) => {
+      this.load.image(`voxel_${id}`, `/assets/props/voxel/${info.file}`);
+    });
   }
 
   create() {
@@ -143,6 +149,13 @@ export class IsometricScene extends Phaser.Scene {
       case 23: this.drawFloorTile(x, y, depth, 0);  this.drawFlowerPot(x, y, depth);        break;
       case 24: this.drawFloorTile(x, y, depth, 0);  this.drawCoffeeMachine(x, y, depth);    break;
       case 25: this.drawFloorTile(x, y, depth, 0);  this.drawTVScreen(x, y, depth);         break;
+
+      default:
+        if (type >= 100) {
+          this.drawFloorTile(x, y, depth, 0); // Always draw floor under voxels
+          this.drawVoxelProp(x, y, depth, type);
+        }
+        break;
     }
   }
 
@@ -522,6 +535,15 @@ export class IsometricScene extends Phaser.Scene {
     this.tweens.add({ targets: glow, alpha: 0.25, duration: 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     g.setDepth(depth + 0.6);
     this.tileLayer.add(g);
+  }
+
+  private drawVoxelProp(x: number, y: number, depth: number, type: number) {
+    const img = this.add.image(x, y - 16, `voxel_${type}`);
+    img.setDepth(depth + 0.5);
+    // Voxel renders are often larger, we may need to scale them
+    // but we already resized them to 64x64. 
+    // However, isometric height usually means we should offset Y more.
+    this.tileLayer.add(img);
   }
 
   // ──────────────────────────────────────────────────────────────

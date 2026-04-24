@@ -40,6 +40,8 @@ const TILE_COLORS: Record<number, string> = {
   [-1]: '#ff4757', // Spawn Point Marker
 };
 
+import { VOXEL_ASSETS } from '@/game/voxelAssets';
+
 const TILE_SIZE = 16; // Display size in pixels for the 2D grid
 
 export default function MapEditor({ initialData, onSave }: MapEditorProps) {
@@ -47,6 +49,23 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
   const [mapData, setMapData] = useState<MapData>(JSON.parse(JSON.stringify(initialData)));
   const [selectedTool, setSelectedTool] = useState<number>(0); // tile id
   const [isDrawing, setIsDrawing] = useState(false);
+  const [imageObjects, setImageObjects] = useState<Record<number, HTMLImageElement>>({});
+
+  useEffect(() => {
+    // Preload voxel images
+    const loaded: Record<number, HTMLImageElement> = {};
+    let count = 0;
+    const assets = Object.entries(VOXEL_ASSETS);
+    assets.forEach(([id, info]) => {
+      const img = new Image();
+      img.src = `/assets/props/voxel/${info.file}`;
+      img.onload = () => {
+        loaded[parseInt(id)] = img;
+        count++;
+        if (count === assets.length) setImageObjects(loaded);
+      };
+    });
+  }, []);
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -61,8 +80,13 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const tileId = grid[y]?.[x] ?? 0;
-        ctx.fillStyle = TILE_COLORS[tileId] || '#000000';
-        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        
+        if (tileId >= 100 && imageObjects[tileId]) {
+          ctx.drawImage(imageObjects[tileId], x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        } else {
+          ctx.fillStyle = TILE_COLORS[tileId] || '#000000';
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
         
         // Grid lines
         ctx.strokeStyle = 'rgba(255,255,255,0.1)';
@@ -139,6 +163,7 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
 
   const toolCategories = [
     { title: 'Sistema', items: [-1] },
+    { title: 'Voxel', items: Object.keys(VOXEL_ASSETS).map(Number) },
     { title: 'Pisos', items: [0, 7, 8, 9, 10, 11, 12, 13, 14] },
     { title: 'Muros', items: [6] },
     { title: 'Mobiliario', items: [1, 2, 3, 4, 5, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25] },
@@ -157,8 +182,14 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
                   key={toolId}
                   className={`tool-btn ${selectedTool === toolId ? 'active' : ''}`}
                   onClick={() => setSelectedTool(toolId)}
-                  title={`Tile ID: ${toolId}`}
-                  style={{ backgroundColor: TILE_COLORS[toolId] }}
+                  title={VOXEL_ASSETS[toolId]?.name || `Tile ID: ${toolId}`}
+                  style={{ 
+                    backgroundColor: TILE_COLORS[toolId] || 'transparent',
+                    backgroundImage: toolId >= 100 ? `url(/assets/props/voxel/${VOXEL_ASSETS[toolId]?.file})` : 'none',
+                    backgroundSize: 'contain',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center'
+                  }}
                 />
               ))}
             </div>

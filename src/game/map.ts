@@ -98,6 +98,9 @@ export const TILE_WALKABLE: Record<number, boolean> = {
   // Furniture / walls (False by default)
   1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 15: false, 16: false,
   17: false, 18: false, 19: false, 20: false, 21: false, 22: false, 23: false, 24: false, 25: false,
+  // Voxel Furniture (100+)
+  100: false, 101: false, 102: false, 103: false, 104: false, 105: false, 106: false, 107: false,
+  108: false, 109: false, 110: false, 111: false, 112: false, 113: false, 114: false, 115: false,
 };
 
 /** Helper to check if a specific tile type is walkable */
