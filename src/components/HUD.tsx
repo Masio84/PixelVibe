@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import type { UserProfile, AvatarPosition } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
+import PhaserGame from '@/components/PhaserGame';
+import type { GameScene } from '@/game/scenes/GameScene';
 
 interface HUDProps {
   profile: UserProfile;
@@ -11,6 +13,9 @@ interface HUDProps {
   users: AvatarPosition[];
   onOpenProfile: () => void;
   onOpenAdmin: () => void;
+  // Opcional: si la página lo pasa, se usa; si no, el botón usa el acceso
+  // estático que expone PhaserGame a la escena (ver handleCenterCamera).
+  onCenterCamera?: () => void;
 }
 
 function useOnlineDuration() {
@@ -28,10 +33,23 @@ function useOnlineDuration() {
   return `En línea hace ${mins} min`;
 }
 
-export default function HUD({ profile, workspaceId, workspaceName, users, onOpenProfile, onOpenAdmin }: HUDProps) {
+export default function HUD({ profile, workspaceId, workspaceName, users, onOpenProfile, onOpenAdmin, onCenterCamera }: HUDProps) {
   const duration = useOnlineDuration();
   const supabase = createClient();
   const onlineCount = users.length;
+
+  // Recentrar la cámara en el personaje (Fase 3): tras arrastrar, la
+  // oficina puede quedar fuera de pantalla y antes solo se podía volver
+  // recargando. Si la página pasa onCenterCamera se usa ese callback; si
+  // no, se llega a la escena con el acceso estático de PhaserGame.
+  const handleCenterCamera = () => {
+    if (onCenterCamera) {
+      onCenterCamera();
+      return;
+    }
+    const getScene = (PhaserGame as unknown as { getScene?: () => GameScene | null }).getScene;
+    getScene?.()?.centerCamera();
+  };
 
   // Salir de la sala: borra la posición pero mantiene la sesión,
   // para volver al selector de salas (/office).
@@ -97,6 +115,9 @@ export default function HUD({ profile, workspaceId, workspaceName, users, onOpen
         )}
         <button className="hud-btn hud-btn-profile" onClick={onOpenProfile}>
           👤 Perfil
+        </button>
+        <button className="hud-btn hud-btn-center" onClick={handleCenterCamera} title="Recentrar la cámara en tu personaje">
+          🎯 Centrar
         </button>
         <button className="hud-btn hud-btn-leave" onClick={handleLeaveRoom}>
           🚪 Salir de la sala

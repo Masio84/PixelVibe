@@ -52,3 +52,67 @@ export const VOXEL_ASSETS: Record<number, { name: string, file: string }> = {
   148: { name: 'Refrigerador', file: 'pt-fridge.png' },
   149: { name: 'Mesa de comedor', file: 'pt-dining-table.png' },
 };
+
+// ── Métricas medidas de cada sprite voxel (Fase 3B) ────────────────
+// w/h/bottom: caja del contenido no transparente dentro del canvas de
+// 64×64, medida con PIL sobre los PNG reales (no estimada).
+// bottom = fila inferior del contenido (64 = llega al borde inferior).
+// cat = categoría de escala; la altura objetivo en px (avatar visible =
+// 26 px) es: low 21 (~0,8× el avatar), desk 28 (~1,1×), mid 34 (~1,3×),
+// tall 42 (~1,6×). La escala real de cada sprite es objetivo / h.
+export type VoxelCategory = 'low' | 'desk' | 'mid' | 'tall';
+export const VOXEL_TARGET_H: Record<VoxelCategory, number> = {
+  low: 21, desk: 28, mid: 34, tall: 42,
+};
+export const VOXEL_METRICS: Record<number, { w: number; h: number; bottom: number; cat: VoxelCategory }> = {
+  100: { w: 53, h: 49, bottom: 56, cat: 'desk' },
+  101: { w: 41, h: 57, bottom: 60, cat: 'low' },
+  102: { w: 42, h: 59, bottom: 61, cat: 'low' },
+  103: { w: 38, h: 64, bottom: 64, cat: 'tall' },
+  104: { w: 38, h: 63, bottom: 63, cat: 'tall' },
+  105: { w: 57, h: 54, bottom: 61, cat: 'desk' },
+  106: { w: 58, h: 57, bottom: 61, cat: 'desk' },
+  107: { w: 19, h: 57, bottom: 60, cat: 'mid' },
+  108: { w: 31, h: 63, bottom: 63, cat: 'tall' },
+  109: { w: 32, h: 64, bottom: 64, cat: 'tall' },
+  110: { w: 58, h: 61, bottom: 63, cat: 'desk' },
+  111: { w: 64, h: 54, bottom: 59, cat: 'desk' },
+  112: { w: 63, h: 55, bottom: 59, cat: 'desk' },
+  113: { w: 35, h: 60, bottom: 62, cat: 'tall' },
+  114: { w: 35, h: 61, bottom: 62, cat: 'tall' },
+  115: { w: 64, h: 59, bottom: 61, cat: 'tall' },
+  116: { w: 62, h: 53, bottom: 59, cat: 'desk' },
+  117: { w: 38, h: 62, bottom: 63, cat: 'low' },
+  118: { w: 54, h: 61, bottom: 63, cat: 'desk' },
+  119: { w: 32, h: 61, bottom: 62, cat: 'mid' },
+  120: { w: 26, h: 62, bottom: 63, cat: 'tall' },
+  121: { w: 40, h: 62, bottom: 63, cat: 'tall' },
+  122: { w: 43, h: 62, bottom: 63, cat: 'tall' },
+  123: { w: 22, h: 62, bottom: 63, cat: 'mid' },
+  124: { w: 42, h: 62, bottom: 63, cat: 'low' },
+  125: { w: 20, h: 61, bottom: 62, cat: 'mid' },
+  126: { w: 44, h: 62, bottom: 63, cat: 'desk' },
+  127: { w: 53, h: 62, bottom: 63, cat: 'low' },
+  128: { w: 61, h: 44, bottom: 54, cat: 'low' },
+  129: { w: 62, h: 61, bottom: 63, cat: 'desk' },
+  130: { w: 42, h: 61, bottom: 62, cat: 'mid' },
+  131: { w: 62, h: 46, bottom: 55, cat: 'low' },
+  132: { w: 62, h: 35, bottom: 50, cat: 'low' },
+  133: { w: 49, h: 62, bottom: 63, cat: 'desk' },
+  134: { w: 37, h: 62, bottom: 63, cat: 'low' },
+  135: { w: 36, h: 61, bottom: 63, cat: 'tall' },
+  136: { w: 58, h: 49, bottom: 61, cat: 'desk' },
+  137: { w: 40, h: 58, bottom: 61, cat: 'low' },
+  138: { w: 52, h: 51, bottom: 58, cat: 'desk' },
+  139: { w: 56, h: 53, bottom: 60, cat: 'desk' },
+  140: { w: 21, h: 60, bottom: 62, cat: 'mid' },
+  141: { w: 53, h: 56, bottom: 60, cat: 'low' },
+  142: { w: 60, h: 45, bottom: 62, cat: 'desk' },
+  143: { w: 58, h: 41, bottom: 61, cat: 'low' },
+  144: { w: 60, h: 51, bottom: 62, cat: 'desk' },
+  145: { w: 40, h: 60, bottom: 62, cat: 'tall' },
+  146: { w: 53, h: 58, bottom: 61, cat: 'tall' },
+  147: { w: 58, h: 41, bottom: 61, cat: 'low' },
+  148: { w: 38, h: 60, bottom: 62, cat: 'tall' },
+  149: { w: 60, h: 51, bottom: 62, cat: 'desk' },
+};

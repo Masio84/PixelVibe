@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
-import type { UserProfile, ChatMessage, AvatarPosition } from '@/lib/types';
+import type { UserProfile, ChatMessage, AvatarPosition, AvatarConfig } from '@/lib/types';
 import type { MapData } from '@/game/map';
 import { DEFAULT_MAP_DATA } from '@/game/map';
 import HUD from '@/components/HUD';
@@ -53,7 +53,7 @@ export default function DynamicOfficePage() {
   const workspaceId = params.workspaceId as string;
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [avatarConfig, setAvatarConfig] = useState<any>(null);
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<AvatarPosition[]>([]);
   const [mapData, setMapData] = useState<MapData>(DEFAULT_MAP_DATA);
@@ -241,6 +241,19 @@ export default function DynamicOfficePage() {
     setProfile(updated);
   };
 
+  // Fase 3C+3A: el perfil guarda un preset o una personalización en
+  // `avatar_config` y avisa aquí. setAvatarConfig actualiza el ref que
+  // PhaserGame envía en cada sincronización de posición (cada 200 ms) en
+  // `avatar_positions`, así que LOS DEMÁS usuarios ven el nuevo aspecto en
+  // vivo (su PhaserGame lo recibe por Realtime y AvatarManager reconstruye
+  // el avatar si cambia el JSON de config). El avatar PROPIO también se
+  // reconstruye en vivo: PhaserGame observa avatarConfig y llama a
+  // GameScene.updateLocalAvatarConfig(config), que reconstruye el avatar
+  // local sin remontar el juego ni reiniciar al spawn.
+  const handleAvatarConfigChange = useCallback((config: AvatarConfig) => {
+    setAvatarConfig(config);
+  }, []);
+
   if (loading || !profile) {
     return (
       <div style={{
@@ -289,6 +302,8 @@ export default function DynamicOfficePage() {
           profile={profile}
           onClose={() => setShowProfile(false)}
           onSave={handleProfileSave}
+          avatarConfig={avatarConfig}
+          onAvatarConfigChange={handleAvatarConfigChange}
         />
       )}
 

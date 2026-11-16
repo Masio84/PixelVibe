@@ -49,6 +49,24 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
     mapDataRef.current = mapData ?? DEFAULT_MAP_DATA;
   }, [onChatMessage, onPositionUpdate, profile, avatarConfig, mapData]);
 
+  // Refresco en vivo del avatar PROPIO al cambiar de skin (Fase 3, parte A):
+  // la página avisa con la prop `avatarConfig` (viene de ProfileModal vía
+  // `onAvatarConfigChange` → `setAvatarConfig`). Sin esto, el cambio propio
+  // solo se vería al reentrar: la escena arranca con la config inicial y
+  // `updateRemoteAvatar` ignora el user_id local. No se remonta el juego:
+  // `updateLocalAvatarConfig` reconstruye el avatar en su sitio, sin tocar
+  // la posición. La comparación por identidad evita aplicar la config
+  // inicial en el montaje (la escena ya arranca con ella). Si la escena aún
+  // no está lista, no pasa nada: arranca con la config vigente del ref.
+  const prevAvatarConfigRef = useRef(avatarConfig);
+  useEffect(() => {
+    if (prevAvatarConfigRef.current === avatarConfig) return;
+    prevAvatarConfigRef.current = avatarConfig;
+    const scene = gameSceneRef.current;
+    if (!scene || !avatarConfig) return;
+    scene.updateLocalAvatarConfig(avatarConfig);
+  }, [avatarConfig]);
+
   const avatarConfigsCache = useRef<Map<string, any>>(new Map());
 
   const handlePositionUpdate = useCallback(async (x: number, y: number, direction: string) => {

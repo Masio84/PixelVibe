@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { AvatarConfig, AvatarGender, AvatarPieceCategory } from '@/lib/types';
 import { DEFAULT_AVATAR_CONFIG } from '@/lib/types';
+import AvatarPreview from '@/components/AvatarPreview';
 
 // ---- Catalog data (hardcoded for now, will come from DB in Phase 3) ----
 
@@ -94,10 +95,23 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
 interface CharacterCreatorProps {
   userId: string;
   initialConfig?: AvatarConfig;
-  onSave: (config: AvatarConfig) => void;
+  onSave: (config: AvatarConfig) => void | Promise<void>;
+  /** Modo edición (desde el perfil): muestra "Volver" y cambia los textos. */
+  onCancel?: () => void;
+  saveLabel?: string;
+  title?: string;
+  subtitle?: string;
 }
 
-export default function CharacterCreator({ userId, initialConfig, onSave }: CharacterCreatorProps) {
+export default function CharacterCreator({
+  userId,
+  initialConfig,
+  onSave,
+  onCancel,
+  saveLabel,
+  title = 'Crea tu Personaje',
+  subtitle = 'Personaliza tu avatar para la oficina virtual',
+}: CharacterCreatorProps) {
   const [config, setConfig] = useState<AvatarConfig>(
     initialConfig ?? { ...DEFAULT_AVATAR_CONFIG, user_id: userId }
   );
@@ -136,7 +150,14 @@ export default function CharacterCreator({ userId, initialConfig, onSave }: Char
 
   const handleSave = async () => {
     setSaving(true);
-    onSave(config);
+    try {
+      await onSave(config);
+    } finally {
+      // En onboarding el padre navega y desmonta; en edición el padre
+      // cierra el editor al guardar. Si sigue montado (error al guardar),
+      // se reactiva el botón para reintentar.
+      setSaving(false);
+    }
   };
 
   // Get the piece options for the active tab
@@ -212,19 +233,17 @@ export default function CharacterCreator({ userId, initialConfig, onSave }: Char
         {/* Header */}
         <div className="cc-header">
           <span className="cc-header-icon">🎨</span>
-          <h1 className="cc-title">Crea tu Personaje</h1>
-          <p className="cc-subtitle">Personaliza tu avatar para la oficina virtual</p>
+          <h1 className="cc-title">{title}</h1>
+          <p className="cc-subtitle">{subtitle}</p>
         </div>
 
         <div className="cc-body">
           {/* Left: Preview + Gender */}
           <div className="cc-left">
-            {/* Avatar Preview */}
+            {/* Avatar Preview: sprite real compuesto, no emoji */}
             <div className="cc-preview-container">
               <div className="cc-preview-bg">
-                <div className="cc-preview-avatar" style={{ fontSize: '4rem' }}>
-                  {config.gender === 'male' ? '🧑‍💼' : '👩‍💼'}
-                </div>
+                <AvatarPreview config={config} size={128} />
                 <p className="cc-preview-hint">Vista previa en vivo</p>
               </div>
             </div>
@@ -284,14 +303,26 @@ export default function CharacterCreator({ userId, initialConfig, onSave }: Char
           </div>
         </div>
 
-        {/* Save Button */}
-        <button
-          className="cc-save-btn"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? '⏳ Guardando...' : '✓ Guardar y Entrar a la Oficina'}
-        </button>
+        {/* Save / Cancel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <button
+            className="cc-save-btn"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? '⏳ Guardando...' : (saveLabel ?? '✓ Guardar y Entrar a la Oficina')}
+          </button>
+          {onCancel && (
+            <button
+              className="modal-btn-cancel"
+              onClick={onCancel}
+              disabled={saving}
+              style={{ alignSelf: 'center' }}
+            >
+              ← Volver sin guardar
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

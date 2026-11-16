@@ -29,7 +29,21 @@ export class GameScene extends Phaser.Scene {
   private localX: number = 8;
   private localY: number = 8;
   private localDirection: 'up' | 'down' | 'left' | 'right' = 'down';
-  private moveSpeed: number = 0.06;
+  // Velocidad base en casillas/s (Fase 3: 5,0; antes el paso fijo por
+  // frame equivalía a 3,6 casillas/s). El movimiento usa velocidad con
+  // aceleración/desaceleración en vez de paso fijo (ver update()).
+  private moveSpeed: number = 5.0;
+  // Aceleración 45 casillas/s²: 0→5 en ~0,11 s. Frenado 70 casillas/s²:
+  // 5→0 en ~0,07 s (~0,18 casillas de deslizamiento): al soltar la tecla
+  // el avatar se detiene en seco, sin patinar ("hielo" de Fase 2).
+  private readonly MOVE_ACCEL: number = 45;
+  private readonly MOVE_DECEL: number = 70;
+  private localVelX: number = 0;
+  private localVelY: number = 0;
+  // Destino del clic para moverse: el avatar CAMINA hacia él (Fase 3).
+  // Una tecla pulsada lo cancela; sin pathfinding: si hay un muro en
+  // medio, el avatar se detiene en él.
+  private clickTarget?: { x: number; y: number };
   private syncTimer: number = 0;
   private events_cb?: GameSceneEvents;
   private userProfile?: UserProfile;
@@ -104,7 +118,17 @@ export class GameScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     if (kb) {
       this.cursors = kb.createCursorKeys();
-      this.wasd = kb.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
+      // OJO (bug del chat, Fase 3): `addKeys` captura las teclas por
+      // defecto (enableCapture=true) y el KeyboardManager de Phaser llama
+      // a `preventDefault()` en cada keydown de W/A/S/D. Eso impide la
+      // acción por defecto del navegador —insertar la letra en el input
+      // enfocado— y por eso al escribir "Prueba de movimiento" en el chat
+      // se perdían la 'a' y la 'd'. Con `false` las teclas se siguen
+      // leyendo (isDown) pero el input las recibe. El guard de `isTyping`
+      // en update() ya evita que el avatar se mueva al escribir.
+      // Las flechas SÍ se capturan (no escriben texto y así no hacen
+      // scroll a la página); SPACE ya se quitaba de la captura en Fase 2.
+      this.wasd = kb.addKeys('W,A,S,D', false) as Record<string, Phaser.Input.Keyboard.Key>;
       kb.addCapture('UP,DOWN,LEFT,RIGHT');
       kb.removeCapture('SPACE');
     }
@@ -166,10 +190,13 @@ export class GameScene extends Phaser.Scene {
         this.localY
       );
 
-      this.cameras.main.startFollow(avatar.compositor.container, true, 0.1, 0.1);
+      this.cameras.main.startFollow(avatar.compositor.container, true, 0.2, 0.2);
       if (this.mapScene?.cameras?.main) {
-        this.mapScene.cameras.main.startFollow(avatar.compositor.container, true, 0.1, 0.1);
+        this.mapScene.cameras.main.startFollow(avatar.compositor.container, true, 0.2, 0.2);
       }
+      // El avatar local no se interpola: su posición dibujada es la
+      // lógica (Fase 3, ver AvatarManager.update()).
+      this.avatarManager.setLocalUserId(this.userProfile.id);
     }
 
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
@@ -179,11 +206,28 @@ export class GameScene extends Phaser.Scene {
   private resumeFollow() {
     const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
     if (!localAvatar) return;
-    this.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+    this.cameras.main.startFollow(localAvatar.compositor.container, true, 0.2, 0.2);
     if (this.mapScene?.cameras?.main) {
-      this.mapScene.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+      this.mapScene.cameras.main.startFollow(localAvatar.compositor.container, true, 0.2, 0.2);
     }
     this.cameraFollowSuspended = false;
+  }
+
+  /**
+   * Recentra la cámara en el personaje de inmediato (botón «Centrar» del
+   * HUD). Tras arrastrar, la oficina puede quedar fuera de pantalla y
+   * antes solo se podía volver recargando: esto coloca la vista sobre el
+   * avatar al instante y reanuda el seguimiento suave.
+   */
+  public centerCamera() {
+    const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
+    if (!localAvatar) return;
+    const pos = this.getIsoPos(this.localX, this.localY);
+    this.cameras.main.centerOn(pos.x, pos.y);
+    if (this.mapScene?.cameras?.main) {
+      this.mapScene.cameras.main.centerOn(pos.x, pos.y);
+    }
+    this.resumeFollow();
   }
 
   private handleWorldClick(ptr: Phaser.Input.Pointer) {
@@ -210,12 +254,24 @@ export class GameScene extends Phaser.Scene {
     const targetCol = Math.round((relX / (TILE_W / 2) + relY / (TILE_H / 2)) / 2);
     const targetRow = Math.round((relY / (TILE_H / 2) - relX / (TILE_W / 2)) / 2);
 
+    // ANTES el clic teletransportaba la posición lógica al destino. Ahora
+    // (Fase 3) solo fija el destino y el avatar CAMINA hacia él en
+    // update() a velocidad de caminata, con las mismas comprobaciones de
+    // colisión por eje. Sin pathfinding: si hay un muro en medio, el
+    // avatar se detiene en él. Un clic nuevo reemplaza el destino; una
+    // tecla pulsada lo cancela.
     if (this.isWalkable(targetCol, targetRow)) {
-      this.localX = targetCol;
-      this.localY = targetRow;
+      this.clickTarget = { x: targetCol, y: targetRow };
       // Auto resume follow on click
       this.resumeFollow();
     }
+  }
+
+  /** Mueve `value` hacia `target` como mucho `maxDelta` (sin pasarse). */
+  private approach(value: number, target: number, maxDelta: number): number {
+    if (value < target) return Math.min(value + maxDelta, target);
+    if (value > target) return Math.max(value - maxDelta, target);
+    return value;
   }
 
   private getIsoPos(col: number, row: number) {
@@ -279,26 +335,75 @@ export class GameScene extends Phaser.Scene {
     if (left)  { dx -= 1; newDir = 'left'; }
     if (right) { dx += 1; newDir = 'right'; }
 
+    // `dt` en segundos, limitado a 100 ms para que un frame largo
+    // (pestaña inactiva) no teletransporte al avatar atravesando muros.
+    const dt = Math.min(delta, 100) / 1000;
+
     if (dx !== 0 || dy !== 0) {
-      // ANTES el paso era fijo por frame (0.06): a 120 fps se caminaba al
-      // doble que a 60. Ahora se escala por `delta` tomando 60 fps como
-      // referencia (0.06 * 60 = 3.6 casillas/s). El `delta` se limita a
-      // 100 ms para que un frame largo (pestaña inactiva) no teletransporte
-      // al avatar atravesando muros.
-      // La diagonal también era ~41% más rápida por no normalizar el
-      // vector; ahora (dx, dy) es unitario en cualquier dirección.
+      // Teclado: una tecla pulsada cancela el destino del clic.
+      this.clickTarget = undefined;
       const len = Math.hypot(dx, dy);
       dx /= len;
       dy /= len;
-      const step = this.moveSpeed * Math.min(delta, 100) / (1000 / 60);
-      const nextX = this.localX + dx * step;
-      const nextY = this.localY + dy * step;
-      if (this.isWalkable(nextX, this.localY)) this.localX = nextX;
-      if (this.isWalkable(this.localX, nextY)) this.localY = nextY;
       this.localDirection = newDir;
+    } else if (this.clickTarget) {
+      // Clic para moverse: camina hacia el destino a velocidad de
+      // caminata. Sin pathfinding: si un muro bloquea el paso, el avatar
+      // se detiene en él (ver abajo).
+      const tx = this.clickTarget.x - this.localX;
+      const ty = this.clickTarget.y - this.localY;
+      const dist = Math.hypot(tx, ty);
+      if (dist < 0.05) {
+        // Llegada: colocar exactamente en el destino y parar en seco.
+        this.localX = this.clickTarget.x;
+        this.localY = this.clickTarget.y;
+        this.localVelX = 0;
+        this.localVelY = 0;
+        this.clickTarget = undefined;
+      } else {
+        dx = tx / dist;
+        dy = ty / dist;
+        this.localDirection =
+          Math.abs(tx) > Math.abs(ty)
+            ? (tx > 0 ? 'right' : 'left')
+            : (ty > 0 ? 'down' : 'up');
+      }
+    }
+
+    // Velocidad con aceleración/desaceleración (Fase 3): ANTES el paso era
+    // fijo por frame y la posición dibujada iba con lerp 0,08 detrás de la
+    // lógica, lo que producía el deslizamiento ("hielo") al soltar la
+    // tecla. Ahora la velocidad sube a 45 casillas/s² (0→5 en ~0,11 s) y
+    // baja a 70 casillas/s² (5→0 en ~0,07 s, ~0,18 casillas de
+    // deslizamiento): al soltar, el avatar se detiene en seco. La
+    // diagonal sigue normalizada (vector unitario en cualquier dirección).
+    const hasInput = dx !== 0 || dy !== 0;
+    const maxDelta = (hasInput ? this.MOVE_ACCEL : this.MOVE_DECEL) * dt;
+    this.localVelX = this.approach(this.localVelX, dx * this.moveSpeed, maxDelta);
+    this.localVelY = this.approach(this.localVelY, dy * this.moveSpeed, maxDelta);
+
+    const speed = Math.hypot(this.localVelX, this.localVelY);
+    if (speed > 0.001) {
+      const nextX = this.localX + this.localVelX * dt;
+      const nextY = this.localY + this.localVelY * dt;
+      let movedX = false;
+      let movedY = false;
+      // Colisión por eje, como antes: deslizarse junto a un muro sigue
+      // funcionando y el eje bloqueado no arrastra al otro.
+      if (this.isWalkable(nextX, this.localY)) { this.localX = nextX; movedX = true; }
+      else { this.localVelX = 0; }
+      if (this.isWalkable(this.localX, nextY)) { this.localY = nextY; movedY = true; }
+      else { this.localVelY = 0; }
+      // Clic: si un muro bloquea el avance en ambos ejes, se llegó tan
+      // lejos como se puede; no quedarse empujando el muro para siempre.
+      if (this.clickTarget && !movedX && !movedY) {
+        this.clickTarget = undefined;
+        this.localVelX = 0;
+        this.localVelY = 0;
+      }
 
       // Tras arrastrar la cámara, el seguimiento solo volvía con clic o
-      // zoom: al caminar con el teclado también se reanuda.
+      // zoom: al caminar también se reanuda.
       if (this.cameraFollowSuspended) this.resumeFollow();
     }
 
@@ -307,6 +412,9 @@ export class GameScene extends Phaser.Scene {
       localAvatar.targetX = this.localX;
       localAvatar.targetY = this.localY;
       localAvatar.direction = this.localDirection;
+      // La animación de caminar para cuando la velocidad llega a cero
+      // (AvatarManager la lee para el avatar local, que ya no usa lerp).
+      localAvatar.moving = speed > 0.5;
     }
 
     this.avatarManager.update(delta);
@@ -345,6 +453,51 @@ export class GameScene extends Phaser.Scene {
       pos.avatar_color || '#6c63ff',
       config
     );
+  }
+
+  /**
+   * Refresco en vivo del avatar PROPIO al cambiar de skin (Fase 3, parte A).
+   * ANTES no existía: `updateRemoteAvatar` ignora el user_id local y el
+   * avatar local solo se crea en `create()` con la config inicial, así que
+   * el propio usuario solo veía su nueva skin al reentrar (los demás sí la
+   * veían en vivo por Realtime). Esto reconstruye el avatar en su sitio,
+   * sin remontar el juego ni reiniciar la posición al spawn: delega en
+   * `avatarManager.updateAvatar`, que solo reconstruye los sprites si el
+   * JSON de config cambió. Las texturas nuevas se cargan antes de aplicar,
+   * con el mismo patrón que el camino de remotos en PhaserGame.
+   */
+  public updateLocalAvatarConfig(config: AvatarConfig) {
+    if (!this.avatarManager || !this.userProfile) return;
+    this.avatarConfig = config;
+    const apply = () => {
+      // Si llegó otra config mientras se cargaban las texturas, esa es la
+      // vigente y esta aplicación quedaría obsoleta.
+      if (this.avatarConfig !== config) return;
+      this.avatarManager.updateAvatar(
+        this.localAvatarId,
+        this.localX,
+        this.localY,
+        this.localDirection,
+        this.userProfile?.name ?? 'User',
+        this.userProfile?.avatar_color ?? '#6c63ff',
+        config
+      );
+    };
+    const layers = [config.body, config.shoes, config.bottom, config.top, config.hair, ...(config.accessories ?? [])];
+    let needsLoad = false;
+    for (const key of layers) {
+      if (key && !this.textures.exists(key)) {
+        needsLoad = true;
+        break;
+      }
+    }
+    AvatarCompositor.preloadConfig(this, config);
+    if (needsLoad) {
+      this.load.once('complete', apply);
+      this.load.start();
+    } else {
+      apply();
+    }
   }
 
   removeRemoteAvatar(userId: string) {

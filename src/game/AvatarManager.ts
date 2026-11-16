@@ -21,6 +21,12 @@ export interface AvatarEntry {
   // JSON de la última config aplicada. Sirve para no reconstruir el avatar
   // en cada actualización de posición (ver updateAvatar).
   configJson?: string;
+  // true solo para el avatar local: su posición dibujada es la lógica,
+  // sin lerp (Fase 3). Lo marca GameScene con setLocalUserId().
+  isLocal?: boolean;
+  // Lo pone GameScene cada frame para el avatar local: la animación de
+  // caminar depende de la velocidad real, no de la distancia al objetivo.
+  moving?: boolean;
 }
 
 export class AvatarManager {
@@ -90,6 +96,17 @@ export class AvatarManager {
 
     this.avatars.set(userId, entry);
     return entry;
+  }
+
+  /**
+   * Marca qué avatar es el local (posición dibujada = lógica, sin lerp).
+   * Llamar tras crear el avatar local; los remotos quedan con el valor
+   * por defecto (falso) y se suavizan con factor escalado por delta.
+   */
+  setLocalUserId(userId: string) {
+    this.avatars.forEach((entry) => {
+      entry.isLocal = entry.userId === userId;
+    });
   }
 
   /** Update or create a remote avatar. */
@@ -188,11 +205,23 @@ export class AvatarManager {
 
   /** Call each frame to interpolate positions and sync animations. */
   update(delta: number) {
+    // dt en segundos, limitado a 100 ms como en GameScene.
+    const dt = Math.min(delta, 100) / 1000;
     this.avatars.forEach((entry) => {
-      // Smooth interpolation
-      const speed = 0.08;
-      entry.gridX += (entry.targetX - entry.gridX) * speed;
-      entry.gridY += (entry.targetY - entry.gridY) * speed;
+      if (entry.isLocal) {
+        // Local: sin lerp — la posición dibujada ES la lógica. ANTES el
+        // lerp 0,08 fijo hacía que el avatar dibujado fuera ~0,7 casillas
+        // por detrás de la lógica y se deslizara ~0,8 s al soltar la tecla
+        // ("hielo" de Fase 2).
+        entry.gridX = entry.targetX;
+        entry.gridY = entry.targetY;
+      } else {
+        // Remotos: suavizado escalado por delta: 1 − exp(−10·dt)
+        // (≈0,15/frame a 60 fps) en vez del 0,08 fijo por frame.
+        const factor = 1 - Math.exp(-10 * dt);
+        entry.gridX += (entry.targetX - entry.gridX) * factor;
+        entry.gridY += (entry.targetY - entry.gridY) * factor;
+      }
 
       const pos = this.getIsoPos(entry.gridX, entry.gridY);
       entry.compositor.setPosition(pos.x, pos.y);
@@ -200,10 +229,13 @@ export class AvatarManager {
       const depth = entry.gridX + entry.gridY;
       entry.compositor.setDepth(depth);
 
-      // Check if moving
-      const isMoving =
-        Math.abs(entry.gridX - entry.targetX) > 0.01 ||
-        Math.abs(entry.gridY - entry.targetY) > 0.01;
+      // Check if moving: el local usa la velocidad real (GameScene pone
+      // `moving` cada frame, así la animación para al frenar en seco); el
+      // remoto, la distancia restante al objetivo.
+      const isMoving = entry.isLocal
+        ? (entry.moving ?? false)
+        : Math.abs(entry.gridX - entry.targetX) > 0.01 ||
+          Math.abs(entry.gridY - entry.targetY) > 0.01;
 
       // Sync animation
       entry.compositor.playAnim(entry.direction, isMoving);
