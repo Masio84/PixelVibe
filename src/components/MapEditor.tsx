@@ -108,7 +108,7 @@ export default function MapEditor({ initialData, onSave }: MapEditorProps) {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [mapData]);
+  }, [mapData, imageObjects]);
 
   useEffect(() => {
     drawCanvas();

@@ -10,9 +10,18 @@ export default function LandingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
+    // ANTES el callback redirigía aquí con ?error=auth_failed pero nadie
+    // leía ese parámetro: el usuario volvía al login sin saber qué pasó.
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('error') === 'auth_failed') {
+        setAuthError('No se pudo completar el inicio de sesión con Google. Inténtalo de nuevo.');
+      }
+    }
     // Check existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -92,6 +101,12 @@ export default function LandingPage() {
           <span className="btn-google-icon">G</span>
           {signingIn ? 'Redirigiendo...' : 'Entrar con Google'}
         </button>
+
+        {authError && (
+          <p className="landing-error" role="alert">
+            {authError}
+          </p>
+        )}
 
         <p className="landing-footer">
           Al entrar aceptas los términos de uso. Solo almacenamos tu nombre y email.

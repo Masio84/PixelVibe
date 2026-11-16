@@ -19,7 +19,11 @@ export interface GameSceneEvents {
 export class GameScene extends Phaser.Scene {
   private mapScene!: IsometricScene;
   private avatarManager!: AvatarManager;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private wasd?: Record<string, Phaser.Input.Keyboard.Key>;
+
+  // Para distinguir clic (mover) de arrastre (mover cámara)
+  private downAt?: { x: number; y: number; time: number };
 
   private localAvatarId: string = '';
   private localX: number = 8;
@@ -89,10 +93,16 @@ export class GameScene extends Phaser.Scene {
       ambient.setSize(gameSize.width * 2, gameSize.height * 2);
     });
 
-    // Input
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.input.keyboard!.addCapture('UP,DOWN,LEFT,RIGHT');
-    this.input.keyboard!.removeCapture('SPACE');
+    // Input — ANTES solo existían las flechas: el README prometía WASD y
+    // no funcionaba. En móvil no hay teclado físico: sin esta guarda,
+    // `this.input.keyboard!` podía ser nulo y romper la escena.
+    const kb = this.input.keyboard;
+    if (kb) {
+      this.cursors = kb.createCursorKeys();
+      this.wasd = kb.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
+      kb.addCapture('UP,DOWN,LEFT,RIGHT');
+      kb.removeCapture('SPACE');
+    }
 
     // Camera drag
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
@@ -105,8 +115,21 @@ export class GameScene extends Phaser.Scene {
       this.dragStart = { x: ptr.x, y: ptr.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY };
       this.cameras.main.stopFollow();
       this.mapScene.cameras.main.stopFollow();
+      this.downAt = { x: ptr.x, y: ptr.y, time: this.time.now };
     });
-    this.input.on('pointerup', () => { this.isDragging = false; });
+    this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+      this.isDragging = false;
+      // ANTES cualquier pointerdown teletransportaba al avatar (había un
+      // segundo listener que llamaba a handleWorldClick), así que arrastrar
+      // la cámara también te movía. Ahora solo es clic para moverse si fue
+      // un toque corto y casi sin desplazamiento; si fue un arrastre, no.
+      if (ptr.button === 0 && this.downAt) {
+        const moved = Math.hypot(ptr.x - this.downAt.x, ptr.y - this.downAt.y);
+        const dt = this.time.now - this.downAt.time;
+        if (moved < 10 && dt < 350) this.handleWorldClick(ptr);
+      }
+      this.downAt = undefined;
+    });
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
       if (this.isDragging && this.dragStart) {
         const sx = this.dragStart.scrollX + (this.dragStart.x - ptr.x);
@@ -121,16 +144,6 @@ export class GameScene extends Phaser.Scene {
     // Mouse wheel zoom
     this.input.on('wheel', (ptr: Phaser.Input.Pointer, _gos: any, _dx: number, dy: number) => {
       this.adjustZoom(dy > 0 ? -0.1 : 0.1, ptr);
-    });
-
-    // Click to move (Mobile/Mouse)
-    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      // If we clicked on a UI element (handled by HTML), don't move
-      // But Phaser captures everything. We'll use a simple coordinate check
-      // or just allow it since the HUD is HTML on top.
-      if (ptr.button === 0) { // Left click
-         this.handleWorldClick(ptr);
-      }
     });
 
     // Create local avatar
@@ -243,10 +256,15 @@ export class GameScene extends Phaser.Scene {
     let dx = 0, dy = 0;
     let newDir = this.localDirection;
 
-    if (this.cursors.up.isDown)    { dy = -this.moveSpeed; newDir = 'up'; }
-    if (this.cursors.down.isDown)  { dy =  this.moveSpeed; newDir = 'down'; }
-    if (this.cursors.left.isDown)  { dx = -this.moveSpeed; newDir = 'left'; }
-    if (this.cursors.right.isDown) { dx =  this.moveSpeed; newDir = 'right'; }
+    const up = this.cursors?.up.isDown || this.wasd?.W?.isDown;
+    const down = this.cursors?.down.isDown || this.wasd?.S?.isDown;
+    const left = this.cursors?.left.isDown || this.wasd?.A?.isDown;
+    const right = this.cursors?.right.isDown || this.wasd?.D?.isDown;
+
+    if (up)    { dy = -this.moveSpeed; newDir = 'up'; }
+    if (down)  { dy =  this.moveSpeed; newDir = 'down'; }
+    if (left)  { dx = -this.moveSpeed; newDir = 'left'; }
+    if (right) { dx =  this.moveSpeed; newDir = 'right'; }
 
     if (dx !== 0 || dy !== 0) {
       const nextX = this.localX + dx;

@@ -15,6 +15,9 @@ export interface AvatarEntry {
   targetX: number;
   targetY: number;
   direction: 'up' | 'down' | 'left' | 'right';
+  // JSON de la última config aplicada. Sirve para no reconstruir el avatar
+  // en cada actualización de posición (ver updateAvatar).
+  configJson?: string;
 }
 
 export class AvatarManager {
@@ -78,6 +81,7 @@ export class AvatarManager {
       targetX: gridX,
       targetY: gridY,
       direction: 'down',
+      configJson: JSON.stringify(config),
     };
 
     this.avatars.set(userId, entry);
@@ -98,8 +102,14 @@ export class AvatarManager {
     if (!entry) {
       entry = this.createAvatar(userId, name, avatarConfig ?? null, x, y);
     } else if (avatarConfig) {
-      // If config changed, update compositor pieces
-      entry.compositor.updateConfig(avatarConfig);
+      // ANTES: cada actualización de posición (cada 200 ms por usuario
+      // remoto) reconstruía todos los sprites del avatar: parpadeo y
+      // trabajo inútil. Ahora solo se reconstruye si la config cambió.
+      const nextJson = JSON.stringify(avatarConfig);
+      if (entry.configJson !== nextJson) {
+        entry.configJson = nextJson;
+        entry.compositor.updateConfig(avatarConfig);
+      }
     }
     entry.targetX = x;
     entry.targetY = y;
@@ -133,17 +143,18 @@ export class AvatarManager {
 
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x000000, 0.8);
-    bg.fillRoundedRect(-60, -20, 120, 26, 8);
-    bg.fillTriangle(-6, 6, 6, 6, 0, 14);
+    bg.fillRoundedRect(-85, -20, 170, 34, 8);
+    bg.fillTriangle(-6, 14, 6, 14, 0, 22);
 
-    const text = this.scene.add.text(0, -7, message.substring(0, 20), {
+    // ANTES se cortaba a 20 caracteres aunque el chat permite 120.
+    const text = this.scene.add.text(0, -3, message.substring(0, 60), {
       fontFamily: 'var(--font-pixel), "Press Start 2P", monospace',
-      fontSize: '5px',
+      fontSize: '6px',
       color: '#ffffff',
-      wordWrap: { width: 110 },
+      wordWrap: { width: 160 },
     }).setOrigin(0.5);
 
-    const bubble = this.scene.add.container(0, -55, [bg, text]);
+    const bubble = this.scene.add.container(0, -58, [bg, text]);
     entry.compositor.container.add(bubble);
     entry.chatBubble = bubble;
 

@@ -11,10 +11,21 @@ interface ChatPanelProps {
   localPosition: { x: number; y: number };
 }
 
-const CHAT_RADIUS = 300;
+// Radio de chat en CASILLAS del mapa (no en píxeles).
+// ANTES era 300, pero las posiciones x/y son coordenadas de grid (0-32):
+// la distancia máxima en el mapa es ~45, así que el filtro nunca excluía
+// a nadie y el "chat por proximidad" no funcionaba. 5 casillas ≈ 300px
+// con tiles de 64px, que es lo que prometía el README.
+const CHAT_RADIUS_TILES = 5;
 
 function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+function hasPosition(m: ChatMessage): m is ChatMessage & { x: number; y: number } {
+  // OJO: x=0 o y=0 son coordenadas válidas; antes `!m.x` las trataba
+  // como "sin posición" y esos mensajes se mostraban siempre.
+  return typeof m.x === 'number' && typeof m.y === 'number';
 }
 
 function formatTime(dateStr: string) {
@@ -29,8 +40,8 @@ export default function ChatPanel({ profile, workspaceId, messages, localPositio
   const supabase = createClient();
 
   const nearbyMessages = messages.filter((m) => {
-    if (!m.x || !m.y) return true;
-    return distance(localPosition, { x: m.x, y: m.y }) <= CHAT_RADIUS;
+    if (!hasPosition(m)) return true;
+    return distance(localPosition, { x: m.x, y: m.y }) <= CHAT_RADIUS_TILES;
   }).slice(-30);
 
   useEffect(() => {
@@ -65,7 +76,7 @@ export default function ChatPanel({ profile, workspaceId, messages, localPositio
       <div className="chat-header" onClick={() => setIsOpen(!isOpen)}>
         <span className="chat-title">💬 Chat Local</span>
         <span className="chat-toggle">{isOpen ? '▼' : '▲'}</span>
-        <span className="chat-radius-hint">Radio: {CHAT_RADIUS}px</span>
+        <span className="chat-radius-hint">Radio: ~{CHAT_RADIUS_TILES} casillas</span>
       </div>
 
       {isOpen && (

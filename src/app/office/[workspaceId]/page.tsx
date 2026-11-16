@@ -97,6 +97,17 @@ export default function DynamicOfficePage() {
 
       localStorage.setItem('pixelvibe_profile', JSON.stringify(p));
 
+      // Crear la fila del usuario si es su primera vez. ANTES nadie la
+      // creaba en el flujo real (el upsert vivía solo en office_main.tsx,
+      // un archivo muerto sin ruta): sin fila en `users`, el rol siempre
+      // era nulo y ningún usuario nuevo podía llegar a ser admin.
+      await supabase.from('users').upsert({
+        id: p.id,
+        email: p.email,
+        name: p.name,
+        avatar_color: p.avatar_color,
+      });
+
       // Load recent messages for THIS workspace
       const { data: recentMsgs } = await supabase
         .from('messages')
@@ -127,7 +138,7 @@ export default function DynamicOfficePage() {
       
       if (wsData) {
         setWorkspaceName(wsData.name);
-      } else if (workspaceId === '00000000-0000-0000-0000-000000000000') {
+      } else if (workspaceId === '00000000-0000-0000-0000-000000000000' || workspaceId === 'public-room') {
         setWorkspaceName('Oficina Pública');
       }
 
@@ -202,6 +213,18 @@ export default function DynamicOfficePage() {
     };
   }, [profile, supabase, workspaceId]);
 
+  // Sacar de la lista a quienes dejaron de moverse: ANTES el filtro de
+  // "activos en los últimos 30 s" solo se aplicaba al cargar; si alguien
+  // cerraba la pestaña sin salir, quedaba para siempre como "en línea".
+  useEffect(() => {
+    const prune = () => {
+      const cutoff = new Date(Date.now() - 45000).toISOString();
+      setOnlineUsers((prev) => prev.filter((u) => !u.updated_at || u.updated_at >= cutoff));
+    };
+    const id = setInterval(prune, 15000);
+    return () => clearInterval(id);
+  }, []);
+
   const handlePositionUpdate = useCallback((x: number, y: number, direction: string) => {
     positionRef.current = { x, y };
     setLocalPosition({ x, y });
@@ -241,6 +264,7 @@ export default function DynamicOfficePage() {
           avatarConfig={avatarConfig}
           mapData={mapData}
           onChatMessage={handleChatMessage}
+          onPositionUpdate={handlePositionUpdate}
         />
 
         <HUD

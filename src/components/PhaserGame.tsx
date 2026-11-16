@@ -12,9 +12,13 @@ interface PhaserGameProps {
   avatarConfig?: any;
   mapData?: MapData;
   onChatMessage?: (msg: ChatMessage) => void;
+  // ANTES no existía: la página padre nunca se enteraba de dónde estaba el
+  // avatar local, así que el filtro de proximidad del chat usaba siempre la
+  // posición inicial (spawn). Ahora el juego avisa cada sincronización (200 ms).
+  onPositionUpdate?: (x: number, y: number, direction: string) => void;
 }
 
-export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData, onChatMessage }: PhaserGameProps) {
+export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData, onChatMessage, onPositionUpdate }: PhaserGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<import('phaser').Game | null>(null);
   const gameSceneRef = useRef<import('@/game/scenes/GameScene').GameScene | null>(null);
@@ -22,22 +26,25 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
   const supabase = useMemo(() => createClient(), []);
   
   const onChatMessageRef = useRef(onChatMessage);
+  const onPositionUpdateRef = useRef(onPositionUpdate);
   const profileRef = useRef(profile);
   const avatarConfigRef = useRef(avatarConfig);
   const mapDataRef = useRef<MapData>(mapData ?? DEFAULT_MAP_DATA);
 
   useEffect(() => {
     onChatMessageRef.current = onChatMessage;
+    onPositionUpdateRef.current = onPositionUpdate;
     profileRef.current = profile;
     avatarConfigRef.current = avatarConfig;
     mapDataRef.current = mapData ?? DEFAULT_MAP_DATA;
-  }, [onChatMessage, profile, avatarConfig, mapData]);
+  }, [onChatMessage, onPositionUpdate, profile, avatarConfig, mapData]);
 
   const avatarConfigsCache = useRef<Map<string, any>>(new Map());
 
   const handlePositionUpdate = useCallback(async (x: number, y: number, direction: string) => {
     const currentProfile = profileRef.current;
     if (!currentProfile) return;
+    onPositionUpdateRef.current?.(x, y, direction);
     const { error } = await supabase.from('avatar_positions').upsert({
       user_id: currentProfile.id,
       room_id: workspaceId,

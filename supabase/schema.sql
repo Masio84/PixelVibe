@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS public.avatar_positions (
   direction TEXT NOT NULL DEFAULT 'down',
   name TEXT,
   avatar_color TEXT,
+  -- Configuración completa del avatar (JSON) para renderizar avatares remotos
+  -- sin una consulta extra. PhaserGame hace upsert de este campo en cada
+  -- sincronización de posición; sin esta columna el upsert fallaba con
+  -- "column avatar_config does not exist" y ninguna posición se guardaba.
+  avatar_config JSONB,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, room_id)
 );
@@ -55,6 +60,9 @@ CREATE POLICY "Users can delete own position" ON public.avatar_positions
 -- Index for realtime queries
 CREATE INDEX IF NOT EXISTS idx_avatar_positions_room ON public.avatar_positions(room_id);
 CREATE INDEX IF NOT EXISTS idx_avatar_positions_updated ON public.avatar_positions(updated_at);
+
+-- Migración para bases ya creadas con el schema anterior (sin avatar_config)
+ALTER TABLE public.avatar_positions ADD COLUMN IF NOT EXISTS avatar_config JSONB;
 
 -- 3. Tabla messages
 CREATE TABLE IF NOT EXISTS public.messages (
@@ -133,16 +141,28 @@ ALTER TABLE public.asset_catalog ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read active assets" ON public.asset_catalog
   FOR SELECT USING (is_active = true);
 
--- Admin-only write policies (requires role column in users table)
--- ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
--- CREATE POLICY "Admins manage assets" ON public.asset_catalog
---   FOR ALL USING (
---     auth.uid() IN (SELECT id FROM public.users WHERE role = 'admin')
---   );
+-- Escritura solo para admins: sin estas políticas TODAS las escrituras
+-- (upsert/update/delete desde /admin/assets) fallaban por RLS, aunque el
+-- usuario fuera admin. Antes estaban comentadas.
+CREATE POLICY "Admins can insert assets" ON public.asset_catalog
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role IN ('admin', 'superadmin'))
+  );
+
+CREATE POLICY "Admins can update assets" ON public.asset_catalog
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role IN ('admin', 'superadmin'))
+  );
+
+CREATE POLICY "Admins can delete assets" ON public.asset_catalog
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role IN ('admin', 'superadmin'))
+  );
 
 -- ============================================================
 -- 6. Habilitar Realtime en las tablas
--- (Ejecuta esto DESPUÉS de crear las tablas)
+-- (Un solo bloque: el schema tenía dos bloques DROP/CREATE PUBLICATION;
+-- el segundo sobrescribía al primero. Se deja solo este, con todas las tablas.)
 -- ============================================================
 
 -- En Supabase Dashboard > Database > Replication:
@@ -151,9 +171,12 @@ CREATE POLICY "Public read active assets" ON public.asset_catalog
 -- O usa SQL:
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE 
-    public.avatar_positions, 
-    public.messages;
+  CREATE PUBLICATION supabase_realtime FOR TABLE
+    public.avatar_positions,
+    public.messages,
+    public.building_layouts,
+    public.workspaces,
+    public.users;
 COMMIT;
 
 -- ============================================================
@@ -218,13 +241,6 @@ CREATE POLICY "Admins can manage building layouts" ON public.building_layouts
     EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND (users.role = 'admin' OR users.role = 'superadmin'))
   );
 
--- Enable realtime for new tables
-BEGIN;
-  DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE 
-    public.avatar_positions, 
-    public.messages,
-    public.building_layouts,
-    public.workspaces,
-    public.users;
-COMMIT;
+-- Realtime de estas tablas ya está cubierto por la publicación única
+-- de la sección 6 (avatar_positions, messages, building_layouts,
+-- workspaces, users). No duplicar el bloque DROP/CREATE PUBLICATION.

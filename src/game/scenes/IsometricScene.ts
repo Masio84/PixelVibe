@@ -556,8 +556,10 @@ export class IsometricScene extends Phaser.Scene {
 
   public isWalkable(gridX: number, gridY: number): boolean {
     const grid = this.getGrid();
-    const col = Math.floor(gridX);
-    const row = Math.floor(gridY);
+    // Igual que isGridWalkable en map.ts (Math.round). ANTES usaba
+    // Math.floor y ambas funciones podían discrepar en la misma casilla.
+    const col = Math.round(gridX);
+    const row = Math.round(gridY);
     if (row < 0 || row >= grid.length || col < 0 || col >= grid[0].length) return false;
     return TILE_WALKABLE[grid[row][col]] ?? false;
   }
