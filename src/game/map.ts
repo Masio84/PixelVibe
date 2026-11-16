@@ -101,6 +101,12 @@ export const TILE_WALKABLE: Record<number, boolean> = {
   // Voxel Furniture (100+)
   100: false, 101: false, 102: false, 103: false, 104: false, 105: false, 106: false, 107: false,
   108: false, 109: false, 110: false, 111: false, 112: false, 113: false, 114: false, 115: false,
+  // Voxel Fase 2 (116–149: Antahonist 116–135, PtDesigns 136–149)
+  116: false, 117: false, 118: false, 119: false, 120: false, 121: false, 122: false, 123: false,
+  124: false, 125: false, 126: false, 127: false, 128: false, 129: false, 130: false, 131: false,
+  132: false, 133: false, 134: false, 135: false, 136: false, 137: false, 138: false, 139: false,
+  140: false, 141: false, 142: false, 143: false, 144: false, 145: false, 146: false, 147: false,
+  148: false, 149: false,
 };
 
 /** Helper to check if a specific tile type is walkable */

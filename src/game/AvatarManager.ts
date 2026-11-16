@@ -15,6 +15,9 @@ export interface AvatarEntry {
   targetX: number;
   targetY: number;
   direction: 'up' | 'down' | 'left' | 'right';
+  // Momento (reloj de Phaser) de la última actualización de posición
+  // recibida para este avatar. Sirve para podar avatares fantasma.
+  lastSeenAt: number;
   // JSON de la última config aplicada. Sirve para no reconstruir el avatar
   // en cada actualización de posición (ver updateAvatar).
   configJson?: string;
@@ -81,6 +84,7 @@ export class AvatarManager {
       targetX: gridX,
       targetY: gridY,
       direction: 'down',
+      lastSeenAt: this.scene.time.now,
       configJson: JSON.stringify(config),
     };
 
@@ -115,6 +119,7 @@ export class AvatarManager {
     entry.targetY = y;
     entry.direction = direction;
     entry.name = name;
+    entry.lastSeenAt = this.scene.time.now;
 
     // Update label text
     if (entry.label.text !== name) {
@@ -130,6 +135,23 @@ export class AvatarManager {
       if (entry.chatBubble) entry.chatBubble.destroy();
       this.avatars.delete(userId);
     }
+  }
+
+  /**
+   * Elimina los avatares remotos sin actividad durante más de `maxAgeMs`.
+   * El avatar local (`excludeUserId`) nunca se poda: su posición la mueve
+   * el jugador, no llega por Realtime. Si un usuario vuelve a moverse
+   * después de ser podado, `updateAvatar` lo recrea al recibir su
+   * siguiente posición.
+   */
+  pruneInactiveAvatars(maxAgeMs: number, excludeUserId?: string) {
+    const now = this.scene.time.now;
+    this.avatars.forEach((entry) => {
+      if (entry.userId === excludeUserId) return;
+      if (now - entry.lastSeenAt > maxAgeMs) {
+        this.removeAvatar(entry.userId);
+      }
+    });
   }
 
   /** Show a chat bubble above the avatar. */

@@ -33,6 +33,15 @@ export default function HUD({ profile, workspaceId, workspaceName, users, onOpen
   const supabase = createClient();
   const onlineCount = users.length;
 
+  // Salir de la sala: borra la posición pero mantiene la sesión,
+  // para volver al selector de salas (/office).
+  const handleLeaveRoom = async () => {
+    await supabase.from('avatar_positions').delete()
+      .eq('user_id', profile.id).eq('room_id', workspaceId);
+    window.location.href = '/office';
+  };
+
+  // Salir de la sesión: borra la posición, cierra sesión y va al inicio.
   const handleLogout = async () => {
     // Remove avatar position
     await supabase.from('avatar_positions').delete()
@@ -89,8 +98,11 @@ export default function HUD({ profile, workspaceId, workspaceName, users, onOpen
         <button className="hud-btn hud-btn-profile" onClick={onOpenProfile}>
           👤 Perfil
         </button>
+        <button className="hud-btn hud-btn-leave" onClick={handleLeaveRoom}>
+          🚪 Salir de la sala
+        </button>
         <button className="hud-btn hud-btn-logout" onClick={handleLogout}>
-          🚪 Salir
+          🚪 Salir de la sesión
         </button>
       </div>
       <style jsx>{`
@@ -174,6 +186,8 @@ export default function HUD({ profile, workspaceId, workspaceName, users, onOpen
         .hud-btn:hover { background: rgba(108, 99, 255, 0.4); }
         .hud-btn-logout { background: rgba(255, 71, 87, 0.2); border-color: rgba(255, 71, 87, 0.4); }
         .hud-btn-logout:hover { background: rgba(255, 71, 87, 0.4); }
+        .hud-btn-leave { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.25); }
+        .hud-btn-leave:hover { background: rgba(255, 255, 255, 0.18); }
 
         @media (max-width: 600px) {
           .hud { padding: 0.5rem; }

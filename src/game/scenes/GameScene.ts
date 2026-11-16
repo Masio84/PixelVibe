@@ -39,6 +39,11 @@ export class GameScene extends Phaser.Scene {
   // Camera
   private isDragging: boolean = false;
   private dragStart?: { x: number; y: number; scrollX: number; scrollY: number };
+  // True cuando un pointerdown detuvo el seguimiento de la cámara; se
+  // reanuda al caminar (WASD/flechas), al hacer clic o al cambiar el zoom.
+  private cameraFollowSuspended: boolean = false;
+  // Acumulador para la poda periódica de avatares remotos sin actividad.
+  private pruneTimer: number = 0;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -115,6 +120,7 @@ export class GameScene extends Phaser.Scene {
       this.dragStart = { x: ptr.x, y: ptr.y, scrollX: this.cameras.main.scrollX, scrollY: this.cameras.main.scrollY };
       this.cameras.main.stopFollow();
       this.mapScene.cameras.main.stopFollow();
+      this.cameraFollowSuspended = true;
       this.downAt = { x: ptr.x, y: ptr.y, time: this.time.now };
     });
     this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
@@ -169,6 +175,17 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
   }
 
+  /** Reanuda el seguimiento de la cámara sobre el avatar local. */
+  private resumeFollow() {
+    const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
+    if (!localAvatar) return;
+    this.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+    if (this.mapScene?.cameras?.main) {
+      this.mapScene.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
+    }
+    this.cameraFollowSuspended = false;
+  }
+
   private handleWorldClick(ptr: Phaser.Input.Pointer) {
     // Convert screen click to iso grid coordinates
     // This is the inverse of getIsoPos
@@ -197,11 +214,7 @@ export class GameScene extends Phaser.Scene {
       this.localX = targetCol;
       this.localY = targetRow;
       // Auto resume follow on click
-      const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
-      if (localAvatar) {
-        this.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
-        this.mapScene.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
-      }
+      this.resumeFollow();
     }
   }
 
@@ -227,13 +240,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Centrar en el jugador después del zoom
-    const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
-    if (localAvatar) {
-       this.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
-       if (this.mapScene?.cameras?.main) {
-         this.mapScene.cameras.main.startFollow(localAvatar.compositor.container, true, 0.1, 0.1);
-       }
-    }
+    this.resumeFollow();
   }
 
   public getZoom(): number {
@@ -253,25 +260,46 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    // ANTES las teclas se leían siempre: escribir en el chat (WASD o
+    // flechas dentro del input) también movía el avatar. Si el foco está
+    // en un campo de texto, el teclado es del chat, no del juego.
+    const activeEl = typeof document !== 'undefined' ? document.activeElement : null;
+    const isTyping = !!activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+
     let dx = 0, dy = 0;
     let newDir = this.localDirection;
 
-    const up = this.cursors?.up.isDown || this.wasd?.W?.isDown;
-    const down = this.cursors?.down.isDown || this.wasd?.S?.isDown;
-    const left = this.cursors?.left.isDown || this.wasd?.A?.isDown;
-    const right = this.cursors?.right.isDown || this.wasd?.D?.isDown;
+    const up = !isTyping && (this.cursors?.up.isDown || this.wasd?.W?.isDown);
+    const down = !isTyping && (this.cursors?.down.isDown || this.wasd?.S?.isDown);
+    const left = !isTyping && (this.cursors?.left.isDown || this.wasd?.A?.isDown);
+    const right = !isTyping && (this.cursors?.right.isDown || this.wasd?.D?.isDown);
 
-    if (up)    { dy = -this.moveSpeed; newDir = 'up'; }
-    if (down)  { dy =  this.moveSpeed; newDir = 'down'; }
-    if (left)  { dx = -this.moveSpeed; newDir = 'left'; }
-    if (right) { dx =  this.moveSpeed; newDir = 'right'; }
+    if (up)    { dy -= 1; newDir = 'up'; }
+    if (down)  { dy += 1; newDir = 'down'; }
+    if (left)  { dx -= 1; newDir = 'left'; }
+    if (right) { dx += 1; newDir = 'right'; }
 
     if (dx !== 0 || dy !== 0) {
-      const nextX = this.localX + dx;
-      const nextY = this.localY + dy;
+      // ANTES el paso era fijo por frame (0.06): a 120 fps se caminaba al
+      // doble que a 60. Ahora se escala por `delta` tomando 60 fps como
+      // referencia (0.06 * 60 = 3.6 casillas/s). El `delta` se limita a
+      // 100 ms para que un frame largo (pestaña inactiva) no teletransporte
+      // al avatar atravesando muros.
+      // La diagonal también era ~41% más rápida por no normalizar el
+      // vector; ahora (dx, dy) es unitario en cualquier dirección.
+      const len = Math.hypot(dx, dy);
+      dx /= len;
+      dy /= len;
+      const step = this.moveSpeed * Math.min(delta, 100) / (1000 / 60);
+      const nextX = this.localX + dx * step;
+      const nextY = this.localY + dy * step;
       if (this.isWalkable(nextX, this.localY)) this.localX = nextX;
       if (this.isWalkable(this.localX, nextY)) this.localY = nextY;
       this.localDirection = newDir;
+
+      // Tras arrastrar la cámara, el seguimiento solo volvía con clic o
+      // zoom: al caminar con el teclado también se reanuda.
+      if (this.cameraFollowSuspended) this.resumeFollow();
     }
 
     const localAvatar = this.avatarManager.getAvatar(this.localAvatarId);
@@ -282,6 +310,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.avatarManager.update(delta);
+
+    // Poda de avatares fantasma: si un remoto deja de enviar su posición
+    // (cerró la pestaña sin salir), su fila queda en `avatar_positions`
+    // y su avatar se quedaba congelado para siempre. Cada 5 s se eliminan
+    // los que llevan más de 45 s sin actividad, el mismo corte que el HUD
+    // usa para la lista de personas en línea.
+    this.pruneTimer += delta;
+    if (this.pruneTimer >= 5000) {
+      this.pruneTimer = 0;
+      this.avatarManager.pruneInactiveAvatars(45000, this.localAvatarId);
+    }
 
     if (!this.isDragging && this.mapScene?.cameras?.main) {
       this.mapScene.cameras.main.scrollX = this.cameras.main.scrollX;

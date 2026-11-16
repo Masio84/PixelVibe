@@ -110,6 +110,37 @@ export class IsometricScene extends Phaser.Scene {
         this.drawTile(tile, x, y, col, row);
       }
     }
+
+    this.drawZoneLabels();
+  }
+
+  /**
+   * Dibuja el nombre de cada zona (MapData.zones) en el centro de su
+   * rectángulo, como etiqueta con fondo semitransparente y texto pixel.
+   * Se llama desde drawMap(), así que reloadMap() la reconstruye junto
+   * con el resto del mapa cuando el admin cambia el layout. La etiqueta
+   * es solo visual (no intercepta clics) y su profundidad sigue la de su
+   * casilla central para no tapar avatares ni muebles de otras zonas.
+   */
+  private drawZoneLabels() {
+    const zones = this.mapData?.zones ?? [];
+    for (const zone of zones) {
+      if (!zone.name) continue;
+      const centerCol = zone.x + (zone.w - 1) / 2;
+      const centerRow = zone.y + (zone.h - 1) / 2;
+      const { x, y } = this.getIsoPos(centerCol, centerRow);
+
+      const label = this.add.text(x, y - 6, zone.name, {
+        fontFamily: 'var(--font-pixel), "Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#ffffff',
+        backgroundColor: 'rgba(10, 10, 25, 0.65)',
+        padding: { x: 6, y: 4 },
+        align: 'center',
+      }).setOrigin(0.5);
+      label.setDepth(Math.round(centerCol + centerRow) + 0.5);
+      this.tileLayer.add(label);
+    }
   }
 
   private drawTile(type: number, x: number, y: number, col: number, row: number) {

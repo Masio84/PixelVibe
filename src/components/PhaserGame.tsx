@@ -6,6 +6,11 @@ import type { MapData } from '@/game/map';
 import { DEFAULT_MAP_DATA } from '@/game/map';
 import { createClient } from '@/lib/supabase/client';
 
+// Radio de chat en CASILLAS del mapa, el mismo que usa ChatPanel
+// (CHAT_RADIUS_TILES = 5). Se aplica también a las burbujas sobre los
+// avatares para que panel y burbujas coincidan.
+const CHAT_RADIUS_TILES = 5;
+
 interface PhaserGameProps {
   profile: UserProfile;
   workspaceId: string;
@@ -24,6 +29,11 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
   const gameSceneRef = useRef<import('@/game/scenes/GameScene').GameScene | null>(null);
   const [mounted, setMounted] = useState(false);
   const supabase = useMemo(() => createClient(), []);
+
+  // Última posición conocida del jugador local (la actualiza
+  // handlePositionUpdate cada ~200 ms). Se usa para el filtro de
+  // proximidad de las burbujas de chat; arranca en el spawn (8, 8).
+  const localPositionRef = useRef({ x: 8, y: 8 });
   
   const onChatMessageRef = useRef(onChatMessage);
   const onPositionUpdateRef = useRef(onPositionUpdate);
@@ -44,6 +54,7 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
   const handlePositionUpdate = useCallback(async (x: number, y: number, direction: string) => {
     const currentProfile = profileRef.current;
     if (!currentProfile) return;
+    localPositionRef.current = { x, y };
     onPositionUpdateRef.current?.(x, y, direction);
     const { error } = await supabase.from('avatar_positions').upsert({
       user_id: currentProfile.id,
@@ -190,7 +201,19 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
       }, (payload) => {
         const msg = payload.new as ChatMessage;
         if (msg && gameSceneRef.current) {
-          gameSceneRef.current.showChatMessage(msg.user_id, msg.content);
+          // Burbujas con el mismo radio de proximidad que el panel de chat
+          // (ChatPanel: CHAT_RADIUS_TILES = 5 casillas). ANTES la burbuja
+          // se mostraba para cualquier mensaje de la sala, aunque el autor
+          // estuviera al otro extremo del mapa. Sin coordenadas en el
+          // mensaje no se puede medir la distancia y se muestra, igual que
+          // hace el panel. El mensaje propio siempre está a distancia 0.
+          const hasPos = typeof msg.x === 'number' && typeof msg.y === 'number';
+          const dist = hasPos
+            ? Math.hypot(msg.x - localPositionRef.current.x, msg.y - localPositionRef.current.y)
+            : 0;
+          if (!hasPos || dist <= CHAT_RADIUS_TILES) {
+            gameSceneRef.current.showChatMessage(msg.user_id, msg.content);
+          }
         }
         onChatMessageRef.current?.(msg);
       })
@@ -229,8 +252,24 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
     };
     window.addEventListener('resize', handleResize);
 
+    // Al cerrar o recargar la pestaña, borrar la posición propia para no
+    // dejar un avatar fantasma en `avatar_positions`. Es best-effort: el
+    // navegador puede no completar la petición al cerrar, por eso la
+    // garantía real es la poda a los 45 s en GameScene/AvatarManager.
+    // No se usa `visibilitychange`: ocultar la pestaña un momento
+    // (cambiar de ventana) no significa salir de la sala.
+    const handleBeforeUnload = () => {
+      const currentProfile = profileRef.current;
+      if (currentProfile) {
+        void supabase.from('avatar_positions').delete()
+          .eq('user_id', currentProfile.id).eq('room_id', workspaceId);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       supabase.removeChannel(posChannel);
       supabase.removeChannel(chatChannel);
       supabase.removeChannel(layoutChannel);
