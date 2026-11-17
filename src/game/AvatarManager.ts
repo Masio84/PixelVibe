@@ -78,12 +78,16 @@ export class AvatarManager {
 
     // Name label — legible sans-serif, not pixel font. Nombre corto
     // (Fase 4) y 11 px: el nombre completo tapaba muros y piso.
-    const label = this.scene.add.text(0, -44, shortDisplayName(name), {
+    // Fase 5: 16 px y 20 px más arriba (y=-64). El avatar ahora mide
+    // ~52 px (cabeza en ~-47): a -44 la etiqueta tapaba la cabeza.
+    // «Jorge Cuellar» queda en ~124 px de ancho a 16 px, lejos de los
+    // ~300 px del nombre completo que motivaron el recorte en Fase 4.
+    const label = this.scene.add.text(0, -64, shortDisplayName(name), {
       fontFamily: '"Nunito", "Segoe UI", Arial, sans-serif',
-      fontSize: '11px',
+      fontSize: '16px',
       color: '#ffffff',
       stroke: '#000000',
-      strokeThickness: 4,
+      strokeThickness: 5,
       resolution: 3,
       shadow: {
         offsetX: 0,
@@ -209,7 +213,13 @@ export class AvatarManager {
       wordWrap: { width: 160 },
     }).setOrigin(0.5);
 
-    const bubble = this.scene.add.container(0, -58, [bg, text]);
+    // Fase 5: la burbuja sube de -58 a -80. La cabeza del avatar al
+    // doble llega a ~-47 y el pico del bocadillo (fondo +22) debe quedar
+    // por encima de ella: a -80 el pico cae en -58, ~11 px sobre la
+    // cabeza, y el fondo (-100..-66) ya no tapa el personaje. El tamaño
+    // del bocadillo y su fuente (6 px) no cambian: con 60 caracteres y
+    // wordWrap 160, subir la fuente desbordaría el fondo de 170×34.
+    const bubble = this.scene.add.container(0, -80, [bg, text]);
     entry.compositor.container.add(bubble);
     entry.chatBubble = bubble;
 

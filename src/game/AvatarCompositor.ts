@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { AvatarConfig, AvatarGender } from '@/lib/types';
-import { AVATAR_LAYER_ORDER, DEFAULT_AVATAR_CONFIG } from '@/lib/types';
+import { AVATAR_LAYER_ORDER, DEFAULT_AVATAR_CONFIG, isSingleLayerSkin } from '@/lib/types';
 
 /**
  * AvatarCompositor — Renders a multi-layer composable avatar.
@@ -9,12 +9,27 @@ import { AVATAR_LAYER_ORDER, DEFAULT_AVATAR_CONFIG } from '@/lib/types';
  * rendered inside a single Phaser Container. Every layer is an independent
  * spritesheet that shares the same frame layout (6 cols × 4 rows, 32×32 per
  * frame), so animations stay perfectly synchronised.
+ *
+ * Fase 5: el avatar se dibuja al DOBLE (AVATAR_SCALE = 2): visible
+ * ~52 px de alto a zoom 1 (antes 26 px). Cada capa lleva setScale(2) y
+ * se desplaza 5 px hacia arriba para que los pies sigan apoyando en el
+ * mismo punto (+5 sobre el centro de la casilla, como en Fase 3–4):
+ * sin ese desplazamiento los pies caerían a +10. El pixel art sigue
+ * nítido porque el juego usa pixelArt: true (PhaserGame) y las texturas
+ * se escalan por 2 exacto (vecino más cercano, sin suavizado).
  */
 
 // Sprite frame layout: 6 cols × 4 rows  (192×128 total)
 const FRAME_W = 32;
 const FRAME_H = 32;
 const COLS = 6;
+
+// Fase 5: escala del avatar (2×). Pies: con origen 0,8 los pies caen a
+// ~+5 px del centro de la casilla sin escalar; al doble caerían a +10,
+// así que cada capa se sube AVATAR_FEET_LIFT px para que los pies sigan
+// en +5 y el apoyo, la oclusión y el clic no se muevan.
+const AVATAR_SCALE = 2;
+const AVATAR_FEET_LIFT = 5;
 
 // Direction → spritesheet row
 const DIR_ROW: Record<string, number> = {
@@ -26,6 +41,13 @@ const DIR_ROW: Record<string, number> = {
 
 /** Resolve the list of texture keys needed for a given AvatarConfig. */
 function resolveLayerKeys(config: AvatarConfig): { layerName: string; textureKey: string }[] {
+  // Piel de una sola capa (centinela 'skin_*' en config.body, ver
+  // src/lib/types.ts): la hoja ya trae cuerpo + ropa + pelo, así que
+  // se dibuja SOLO esa capa, sin tinte y sin las demás piezas.
+  if (isSingleLayerSkin(config.body)) {
+    return [{ layerName: 'skin', textureKey: config.body }];
+  }
+
   const layers: { layerName: string; textureKey: string }[] = [];
 
   // Fixed layers
@@ -54,6 +76,7 @@ function resolveLayerKeys(config: AvatarConfig): { layerName: string; textureKey
 /** Tint colour to apply per layer. */
 function getTintForLayer(layerName: string, config: AvatarConfig): number | null {
   switch (layerName) {
+    case 'skin': return null; // la piel de una sola capa ya trae sus colores
     case 'body': return parseInt(config.skin_tone.replace('#', ''), 16);
     case 'hair': return parseInt(config.hair_color.replace('#', ''), 16);
     case 'top': return parseInt(config.top_color.replace('#', ''), 16);
@@ -78,7 +101,11 @@ export class AvatarCompositor {
     this.scene = scene;
     this.config = config;
     this.container = scene.add.container(0, 0);
-    this.shadow = scene.add.ellipse(0, 6, 28, 10, 0x000000, 0.25);
+    // Fase 5: sombra al doble de ancha que el cuerpo (28 px al doble) con
+    // margen: 48×12. La altura NO se duplica (20 px cubriría casi toda la
+    // casilla de 32 px en isométrico); el centro sigue en y+6, bajo los
+    // pies (que siguen en +5).
+    this.shadow = scene.add.ellipse(0, 6, 48, 12, 0x000000, 0.25);
     this.buildLayers();
   }
 
@@ -171,6 +198,10 @@ export class AvatarCompositor {
 
       const sprite = this.scene.add.sprite(0, 0, textureKey);
       sprite.setOrigin(0.5, 0.8); // anchor near feet
+      // Fase 5: escala 2× entera (pixel art nítido, ver cabecera) y
+      // desplazamiento hacia arriba para que los pies sigan en +5.
+      sprite.setScale(AVATAR_SCALE);
+      sprite.setPosition(0, -AVATAR_FEET_LIFT);
 
       // Apply tint
       const tint = getTintForLayer(layerName, this.config);

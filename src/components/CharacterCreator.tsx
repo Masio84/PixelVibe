@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import type { AvatarConfig, AvatarGender, AvatarPieceCategory } from '@/lib/types';
-import { DEFAULT_AVATAR_CONFIG } from '@/lib/types';
+import { DEFAULT_AVATAR_CONFIG, isSingleLayerSkin } from '@/lib/types';
 import AvatarPreview from '@/components/AvatarPreview';
 
 // ---- Catalog data (hardcoded for now, will come from DB in Phase 3) ----
@@ -119,7 +119,21 @@ export default function CharacterCreator({
   const [saving, setSaving] = useState(false);
 
   const updateConfig = useCallback((partial: Partial<AvatarConfig>) => {
-    setConfig((prev) => ({ ...prev, ...partial }));
+    setConfig((prev) => {
+      // Piel de una sola capa (centinela 'skin_*' en body, p. ej. Imersa):
+      // la piel manda y cualquier edición de una parte parecería no hacer
+      // nada. Al editar CUALQUIER parte se limpia el centinela y el body
+      // vuelve al default del género actual, salvo que el cambio mismo
+      // fije `body` (cambio de género o aplicación de un preset).
+      if (partial.body === undefined && isSingleLayerSkin(prev.body)) {
+        return {
+          ...prev,
+          ...partial,
+          body: prev.gender === 'female' ? 'body_f' : 'body_m',
+        };
+      }
+      return { ...prev, ...partial };
+    });
   }, []);
 
   // When gender changes, reset gendered pieces to defaults

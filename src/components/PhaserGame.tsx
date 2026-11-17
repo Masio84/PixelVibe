@@ -335,7 +335,9 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
           }}
           style={{ ...zoomBtnStyle, fontSize: '0.6rem', padding: '0.35rem 0.5rem' }}
         >
-          1,5×
+          {/* Fase 5: el zoom por defecto es 1,2 (antes 1,5); el botón
+              muestra ese valor y resetZoom() lo aplica (DEFAULT_ZOOM). */}
+          1,2×
         </button>
       </div>
     </div>

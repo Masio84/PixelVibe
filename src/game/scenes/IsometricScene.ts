@@ -35,6 +35,14 @@ const COLORS = {
 const TILE_W = 64;
 const TILE_H = 32;
 
+// Fase 5: altura del muro procedural (vértice superior sobre el centro
+// de la casilla). El avatar al doble mide ~52 px (cabeza en ~-47), así
+// que 44 px lo dejaba por debajo de la cabeza. Con 68 px el muro supera
+// la cabeza en 21 px y su cara frontal vertical mide 52 px, igual que el
+// avatar — la misma proporción que en Fase 4 (cara 28 px, avatar 26 px).
+// El punto de apoyo no cambia: la base sigue en el rombo del tile.
+const WALL_H = 68;
+
 export class IsometricScene extends Phaser.Scene {
   private tileLayer!: Phaser.GameObjects.Container;
   private mapData?: MapData;
@@ -134,7 +142,10 @@ export class IsometricScene extends Phaser.Scene {
 
       const label = this.add.text(x, y - 6, zone.name, {
         fontFamily: 'var(--font-pixel), "Press Start 2P", monospace',
-        fontSize: '9px',
+        // Fase 5: 9 → 12 px. Junto a sprites al doble, 9 px se veía
+        // diminuto; 12 px se lee bien sin dominar la sala (una zona
+        // abarca varias casillas de 64 px, la etiqueta no tapa el mapa).
+        fontSize: '12px',
         color: '#ffffff',
         backgroundColor: 'rgba(10, 10, 25, 0.65)',
         padding: { x: 6, y: 4 },
@@ -254,47 +265,60 @@ export class IsometricScene extends Phaser.Scene {
   // Existing furniture drawers
   // ──────────────────────────────────────────────────────────────
   /**
-   * Muro isométrico con volumen (Fase 3B, continuo en Fase 4). ANTES cada
-   * casilla de muro era un cubo de 32 px de ancho centrado en el tile:
-   * entre cubos vecinos quedaban huecos por los que se veía el fondo
-   * (negro) y la fila no se leía como pared. Ahora el muro cubre el
-   * rombo COMPLETO del tile (64×32): la cara superior es el rombo entero
-   * con el vértice más alto a 44 px y las dos caras visibles bajan hasta
-   * el rombo base. Dos muros vecinos comparten arista exacta, así que
-   * una fila se lee como pared continua, y un hueco (puerta) queda como
+   * Muro isométrico con volumen (Fase 3B, continuo en Fase 4, más alto
+   * en Fase 5: WALL_H = 68). ANTES cada casilla de muro era un cubo de
+   * 32 px de ancho centrado en el tile: entre cubos vecinos quedaban
+   * huecos por los que se veía el fondo (negro) y la fila no se leía
+   * como pared. Ahora el muro cubre el rombo COMPLETO del tile (64×32):
+   * la cara superior es el rombo entero con el vértice más alto a
+   * WALL_H px sobre el centro y las dos caras visibles bajan hasta el
+   * rombo base. Dos muros vecinos comparten arista exacta, así que una
+   * fila se lee como pared continua, y un hueco (puerta) queda como
    * abertura sobre el piso, no como negro. Mismo punto de apoyo (base
-   * en `y`) y misma altura máxima (~44 px). Depth igual que antes.
+   * en `y` / vértice inferior en `y+16`) y misma depth que antes; solo
+   * crece hacia arriba, así que la oclusión (muro delante tapa avatar
+   * detrás) sigue funcionando igual.
    */
   private drawWallTile(x: number, y: number, depth: number) {
     const g = this.add.graphics();
+    // Vértices en Y: superior (y-WALL_H), medios (rombo superior
+    // desplazado) e inferior del rombo superior (y-WALL_H+32). La cara
+    // frontal vertical mide WALL_H-16 = 52 px, igual que el avatar.
+    const top = y - WALL_H;
+    const mid = y - WALL_H + 16;
+    const low = y - WALL_H + 32;
     // Cara superior (más clara, legible): rombo completo del tile.
     g.fillStyle(COLORS.wallTop);
     g.fillPoints([
-      { x, y: y - 44 }, { x: x + 32, y: y - 28 },
-      { x, y: y - 12 }, { x: x - 32, y: y - 28 },
+      { x, y: top }, { x: x + 32, y: mid },
+      { x, y: low }, { x: x - 32, y: mid },
     ], true);
     // Cara izquierda / suroeste (sombra media): del rombo superior al
     // rombo base (vértices L y B del tile).
     g.fillStyle(COLORS.wallSide);
     g.fillPoints([
-      { x: x - 32, y: y - 28 }, { x, y: y - 12 },
+      { x: x - 32, y: mid }, { x, y: low },
       { x, y: y + 16 }, { x: x - 32, y },
     ], true);
     // Cara derecha / sureste (más oscura).
     g.fillStyle(COLORS.wallFront);
     g.fillPoints([
-      { x, y: y - 12 }, { x: x + 32, y: y - 28 },
+      { x, y: low }, { x: x + 32, y: mid },
       { x: x + 32, y }, { x, y: y + 16 },
     ], true);
     // Juntas de hilada a media altura en ambas caras (textura mínima):
     // de punto medio de arista vertical a punto medio de arista vertical.
+    // Arista lateral: de (mid) a (y) → punto medio (mid+y)/2 = y-26;
+    // arista frontal: de (low) a (y+16) → punto medio y-10.
+    const midSide = (mid + y) / 2;
+    const midFront = (low + y + 16) / 2;
     g.lineStyle(1, 0x000000, 0.15);
-    g.lineBetween(x - 32, y - 14, x, y + 2);
-    g.lineBetween(x + 32, y - 14, x, y + 2);
+    g.lineBetween(x - 32, midSide, x, midFront);
+    g.lineBetween(x + 32, midSide, x, midFront);
     // Borde superior claro
     g.lineStyle(1, 0x7fb3c4, 0.5);
-    g.lineBetween(x, y - 44, x + 32, y - 28);
-    g.lineBetween(x, y - 44, x - 32, y - 28);
+    g.lineBetween(x, top, x + 32, mid);
+    g.lineBetween(x, top, x - 32, mid);
     g.setDepth(depth);
     this.tileLayer.add(g);
   }
@@ -357,14 +381,17 @@ export class IsometricScene extends Phaser.Scene {
   private drawDesk(x: number, y: number, depth: number) {
     this.drawVoxelProp(x, y, depth, 136);
 
-    const glow = this.add.image(x, y - 6, 'monitor_glow');
+    // Fase 5: el escritorio voxel ahora mide 56 px (parte superior en
+    // y-40); el glow y el vapor suben con él para seguir sobre el
+    // monitor / la taza en vez de quedar a media altura del mueble.
+    const glow = this.add.image(x, y - 30, 'monitor_glow');
     glow.setBlendMode(Phaser.BlendModes.ADD);
     glow.setDepth(depth + 0.6);
     glow.setAlpha(0.8);
     this.tileLayer.add(glow);
     this.tweens.add({ targets: glow, alpha: 0.4, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    const emitter = this.add.particles(x - 10, y, 'particle_steam', {
+    const emitter = this.add.particles(x - 10, y - 32, 'particle_steam', {
       speed: { min: 5, max: 15 }, angle: { min: 250, max: 290 },
       scale: { start: 0.5, end: 0 }, alpha: { start: 0.5, end: 0 },
       lifespan: 1500, frequency: 400,
@@ -457,7 +484,8 @@ export class IsometricScene extends Phaser.Scene {
   private drawMonitorDesk(x: number, y: number, depth: number) {
     this.drawVoxelProp(x, y, depth, 136);
 
-    const glow = this.add.image(x, y - 6, 'monitor_glow');
+    // Fase 5: glow en la zona del monitor (ver drawDesk).
+    const glow = this.add.image(x, y - 30, 'monitor_glow');
     glow.setBlendMode(Phaser.BlendModes.ADD);
     glow.setAlpha(0.6);
     glow.setDepth(depth + 0.6);
@@ -472,7 +500,9 @@ export class IsometricScene extends Phaser.Scene {
   private drawCoffeeMachine(x: number, y: number, depth: number) {
     this.drawVoxelProp(x, y, depth, 133);
 
-    const steam = this.add.particles(x, y - 14, 'particle_steam', {
+    // Fase 5: la cafetera voxel ahora mide 56 px (parte superior en
+    // y-40); el vapor sube a su parte superior.
+    const steam = this.add.particles(x, y - 38, 'particle_steam', {
       speed: { min: 3, max: 10 }, angle: { min: 260, max: 280 },
       scale: { start: 0.3, end: 0 }, alpha: { start: 0.6, end: 0 },
       lifespan: 1000, frequency: 600,
@@ -487,7 +517,9 @@ export class IsometricScene extends Phaser.Scene {
   private drawTVScreen(x: number, y: number, depth: number) {
     this.drawVoxelProp(x, y, depth, 139);
 
-    const glow = this.add.image(x, y - 6, 'monitor_glow');
+    // Fase 5: la TV voxel ahora mide 56 px (parte superior en y-40);
+    // el glow sube a la zona de la pantalla.
+    const glow = this.add.image(x, y - 30, 'monitor_glow');
     glow.setBlendMode(Phaser.BlendModes.ADD);
     glow.setAlpha(0.5);
     glow.setScale(1.5, 1);
@@ -498,22 +530,25 @@ export class IsometricScene extends Phaser.Scene {
 
   /**
    * Dibuja un mueble voxel (IDs 100–149) con escala normalizada (Fase 3B).
-   * Referencia: avatar visible 14×26 px = 1,0×. La altura objetivo depende
-   * de la categoría del sprite (VOXEL_METRICS / VOXEL_TARGET_H en
-   * voxelAssets.ts): bajo 21 px (~0,8×), escritorio 28 px (~1,1×),
-   * medio 34 px (~1,3×), alto 42 px (~1,6×). La escala es objetivo /
-   * altura real del contenido, así que cada sprite queda a su tamaño.
-   * El punto de apoyo NO se desplaza: origen (0.5, 1) en la base y la
-   * parte inferior del contenido cae siempre en y+16 (vértice inferior
-   * del rombo del piso). Sombra de suelo en todos los muebles.
-   * Depth: sombra +0,4, sprite +0,5 (igual que antes; avatar +0,9).
+   * Referencia: avatar visible 28×52 px = 1,0× (Fase 5, doble que en
+   * Fase 4). La altura objetivo depende de la categoría del sprite
+   * (VOXEL_METRICS / VOXEL_TARGET_H en voxelAssets.ts): bajo 42 px
+   * (~0,8×), escritorio 56 px (~1,1×), medio 68 px (~1,3×), alto 84 px
+   * (~1,6×). La escala es objetivo / altura real del contenido, así que
+   * cada sprite queda a su tamaño. El punto de apoyo NO se desplaza:
+   * origen (0.5, 1) en la base y la parte inferior del contenido cae
+   * siempre en y+16 (vértice inferior del rombo del piso). Sombra de
+   * suelo en todos los muebles. Depth: sombra +0,4, sprite +0,5 (igual
+   * que antes; avatar +0,9). Fase 5: el canvas voxel es 128×128 (antes
+   * 64×64), así que el anclaje usa 128: con 64 los muebles flotaban
+   * ~64 px sobre el piso.
    */
   private drawVoxelProp(x: number, y: number, depth: number, type: number) {
     const metrics = VOXEL_METRICS[type];
     const targetH = metrics ? VOXEL_TARGET_H[metrics.cat] : 30;
-    const contentH = metrics?.h ?? 64;
-    const contentW = metrics?.w ?? 64;
-    const contentBottom = metrics?.bottom ?? 64;
+    const contentH = metrics?.h ?? 128;
+    const contentW = metrics?.w ?? 128;
+    const contentBottom = metrics?.bottom ?? 128;
     const scale = targetH / contentH;
 
     // Sombra de suelo (debajo del sprite, encima del piso)
@@ -524,8 +559,8 @@ export class IsometricScene extends Phaser.Scene {
     this.tileLayer.add(shadow);
 
     // Base del contenido anclada en y+16: la parte transparente bajo el
-    // contenido (64 - bottom) se compensa para que el apoyo no se mueva.
-    const img = this.add.image(x, y + 16 + (64 - contentBottom) * scale, `voxel_${type}`);
+    // contenido (128 - bottom) se compensa para que el apoyo no se mueva.
+    const img = this.add.image(x, y + 16 + (128 - contentBottom) * scale, `voxel_${type}`);
     img.setOrigin(0.5, 1);
     img.setScale(scale);
     img.setDepth(depth + 0.5);

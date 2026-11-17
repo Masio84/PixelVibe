@@ -1,0 +1,852 @@
+[
+ {
+  "id": 100,
+  "file": "Books.png",
+  "cat": "desk",
+  "old": {
+   "w": 30,
+   "h": 28,
+   "bottom": 56
+  },
+  "new": {
+   "w": 60,
+   "h": 56,
+   "bottom": 112
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 101,
+  "file": "Chair 1.png",
+  "cat": "low",
+  "old": {
+   "w": 15,
+   "h": 21,
+   "bottom": 60
+  },
+  "new": {
+   "w": 30,
+   "h": 42,
+   "bottom": 120
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 102,
+  "file": "Chair 2.png",
+  "cat": "low",
+  "old": {
+   "w": 15,
+   "h": 21,
+   "bottom": 61
+  },
+  "new": {
+   "w": 30,
+   "h": 42,
+   "bottom": 122
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 103,
+  "file": "Closet 1.png",
+  "cat": "tall",
+  "old": {
+   "w": 25,
+   "h": 42,
+   "bottom": 64
+  },
+  "new": {
+   "w": 50,
+   "h": 82,
+   "bottom": 127
+  },
+  "target": 84,
+  "scale_dibujo": 1.024
+ },
+ {
+  "id": 104,
+  "file": "Closet 2.png",
+  "cat": "tall",
+  "old": {
+   "w": 25,
+   "h": 42,
+   "bottom": 63
+  },
+  "new": {
+   "w": 49,
+   "h": 83,
+   "bottom": 126
+  },
+  "target": 84,
+  "scale_dibujo": 1.012
+ },
+ {
+  "id": 105,
+  "file": "Desk 1.png",
+  "cat": "desk",
+  "old": {
+   "w": 30,
+   "h": 28,
+   "bottom": 61
+  },
+  "new": {
+   "w": 60,
+   "h": 55,
+   "bottom": 121
+  },
+  "target": 56,
+  "scale_dibujo": 1.018
+ },
+ {
+  "id": 106,
+  "file": "Desk 2.png",
+  "cat": "desk",
+  "old": {
+   "w": 28,
+   "h": 28,
+   "bottom": 61
+  },
+  "new": {
+   "w": 56,
+   "h": 55,
+   "bottom": 121
+  },
+  "target": 56,
+  "scale_dibujo": 1.018
+ },
+ {
+  "id": 107,
+  "file": "Lamp.png",
+  "cat": "mid",
+  "old": {
+   "w": 11,
+   "h": 34,
+   "bottom": 60
+  },
+  "new": {
+   "w": 21,
+   "h": 67,
+   "bottom": 119
+  },
+  "target": 68,
+  "scale_dibujo": 1.015
+ },
+ {
+  "id": 108,
+  "file": "Mirror 1.png",
+  "cat": "tall",
+  "old": {
+   "w": 21,
+   "h": 42,
+   "bottom": 63
+  },
+  "new": {
+   "w": 42,
+   "h": 83,
+   "bottom": 126
+  },
+  "target": 84,
+  "scale_dibujo": 1.012
+ },
+ {
+  "id": 109,
+  "file": "Mirror 2.png",
+  "cat": "tall",
+  "old": {
+   "w": 21,
+   "h": 42,
+   "bottom": 64
+  },
+  "new": {
+   "w": 42,
+   "h": 84,
+   "bottom": 128
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 110,
+  "file": "Sprite 1.png",
+  "cat": "desk",
+  "old": {
+   "w": 27,
+   "h": 28,
+   "bottom": 63
+  },
+  "new": {
+   "w": 54,
+   "h": 56,
+   "bottom": 126
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 111,
+  "file": "bed 1.png",
+  "cat": "desk",
+  "old": {
+   "w": 33,
+   "h": 28,
+   "bottom": 59
+  },
+  "new": {
+   "w": 66,
+   "h": 56,
+   "bottom": 118
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 112,
+  "file": "bed 2.png",
+  "cat": "desk",
+  "old": {
+   "w": 32,
+   "h": 28,
+   "bottom": 59
+  },
+  "new": {
+   "w": 64,
+   "h": 55,
+   "bottom": 118
+  },
+  "target": 56,
+  "scale_dibujo": 1.018
+ },
+ {
+  "id": 113,
+  "file": "shelving 1.png",
+  "cat": "tall",
+  "old": {
+   "w": 24,
+   "h": 42,
+   "bottom": 62
+  },
+  "new": {
+   "w": 47,
+   "h": 83,
+   "bottom": 123
+  },
+  "target": 84,
+  "scale_dibujo": 1.012
+ },
+ {
+  "id": 114,
+  "file": "shelving 2.png",
+  "cat": "tall",
+  "old": {
+   "w": 24,
+   "h": 42,
+   "bottom": 62
+  },
+  "new": {
+   "w": 47,
+   "h": 82,
+   "bottom": 123
+  },
+  "target": 84,
+  "scale_dibujo": 1.024
+ },
+ {
+  "id": 115,
+  "file": "wall shelving 1.png",
+  "cat": "tall",
+  "old": {
+   "w": 46,
+   "h": 42,
+   "bottom": 61
+  },
+  "new": {
+   "w": 92,
+   "h": 83,
+   "bottom": 122
+  },
+  "target": 84,
+  "scale_dibujo": 1.012
+ },
+ {
+  "id": 116,
+  "file": "ant-office-desk.png",
+  "cat": "desk",
+  "old": {
+   "w": 33,
+   "h": 28,
+   "bottom": 59
+  },
+  "new": {
+   "w": 66,
+   "h": 56,
+   "bottom": 118
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 117,
+  "file": "ant-office-chair.png",
+  "cat": "low",
+  "old": {
+   "w": 13,
+   "h": 21,
+   "bottom": 63
+  },
+  "new": {
+   "w": 26,
+   "h": 42,
+   "bottom": 126
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 118,
+  "file": "ant-standing-desk.png",
+  "cat": "desk",
+  "old": {
+   "w": 25,
+   "h": 28,
+   "bottom": 63
+  },
+  "new": {
+   "w": 50,
+   "h": 56,
+   "bottom": 126
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 119,
+  "file": "ant-filing-cabinet.png",
+  "cat": "mid",
+  "old": {
+   "w": 18,
+   "h": 34,
+   "bottom": 62
+  },
+  "new": {
+   "w": 36,
+   "h": 68,
+   "bottom": 124
+  },
+  "target": 68,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 120,
+  "file": "ant-bookshelf.png",
+  "cat": "tall",
+  "old": {
+   "w": 18,
+   "h": 42,
+   "bottom": 63
+  },
+  "new": {
+   "w": 36,
+   "h": 84,
+   "bottom": 126
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 121,
+  "file": "ant-whiteboard.png",
+  "cat": "tall",
+  "old": {
+   "w": 27,
+   "h": 42,
+   "bottom": 63
+  },
+  "new": {
+   "w": 54,
+   "h": 84,
+   "bottom": 126
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 122,
+  "file": "ant-cork-board.png",
+  "cat": "tall",
+  "old": {
+   "w": 29,
+   "h": 42,
+   "bottom": 63
+  },
+  "new": {
+   "w": 58,
+   "h": 84,
+   "bottom": 126
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 123,
+  "file": "ant-coat-rack.png",
+  "cat": "mid",
+  "old": {
+   "w": 12,
+   "h": 34,
+   "bottom": 63
+  },
+  "new": {
+   "w": 24,
+   "h": 68,
+   "bottom": 126
+  },
+  "target": 68,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 124,
+  "file": "ant-waste-bin.png",
+  "cat": "low",
+  "old": {
+   "w": 14,
+   "h": 21,
+   "bottom": 63
+  },
+  "new": {
+   "w": 28,
+   "h": 42,
+   "bottom": 126
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 125,
+  "file": "ant-water-cooler.png",
+  "cat": "mid",
+  "old": {
+   "w": 11,
+   "h": 34,
+   "bottom": 62
+  },
+  "new": {
+   "w": 22,
+   "h": 68,
+   "bottom": 124
+  },
+  "target": 68,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 126,
+  "file": "ant-office-monitor.png",
+  "cat": "desk",
+  "old": {
+   "w": 20,
+   "h": 28,
+   "bottom": 63
+  },
+  "new": {
+   "w": 40,
+   "h": 56,
+   "bottom": 126
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 127,
+  "file": "ant-desk-lamp.png",
+  "cat": "low",
+  "old": {
+   "w": 18,
+   "h": 21,
+   "bottom": 63
+  },
+  "new": {
+   "w": 36,
+   "h": 42,
+   "bottom": 126
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 128,
+  "file": "ant-desk-phone.png",
+  "cat": "low",
+  "old": {
+   "w": 29,
+   "h": 21,
+   "bottom": 54
+  },
+  "new": {
+   "w": 58,
+   "h": 42,
+   "bottom": 108
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 129,
+  "file": "ant-laser-printer.png",
+  "cat": "desk",
+  "old": {
+   "w": 28,
+   "h": 28,
+   "bottom": 63
+  },
+  "new": {
+   "w": 56,
+   "h": 56,
+   "bottom": 126
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 130,
+  "file": "ant-paper-shredder.png",
+  "cat": "mid",
+  "old": {
+   "w": 23,
+   "h": 34,
+   "bottom": 62
+  },
+  "new": {
+   "w": 46,
+   "h": 68,
+   "bottom": 124
+  },
+  "target": 68,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 131,
+  "file": "ant-projector.png",
+  "cat": "low",
+  "old": {
+   "w": 28,
+   "h": 21,
+   "bottom": 55
+  },
+  "new": {
+   "w": 56,
+   "h": 42,
+   "bottom": 110
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 132,
+  "file": "ant-speakerphone.png",
+  "cat": "low",
+  "old": {
+   "w": 37,
+   "h": 21,
+   "bottom": 50
+  },
+  "new": {
+   "w": 74,
+   "h": 42,
+   "bottom": 100
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 133,
+  "file": "ant-coffee-machine.png",
+  "cat": "desk",
+  "old": {
+   "w": 22,
+   "h": 28,
+   "bottom": 63
+  },
+  "new": {
+   "w": 44,
+   "h": 56,
+   "bottom": 126
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 134,
+  "file": "ant-potted-plant.png",
+  "cat": "low",
+  "old": {
+   "w": 13,
+   "h": 21,
+   "bottom": 63
+  },
+  "new": {
+   "w": 26,
+   "h": 42,
+   "bottom": 126
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 135,
+  "file": "ant-vending-machine.png",
+  "cat": "tall",
+  "old": {
+   "w": 25,
+   "h": 42,
+   "bottom": 63
+  },
+  "new": {
+   "w": 50,
+   "h": 84,
+   "bottom": 126
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 136,
+  "file": "pt-computer-desk.png",
+  "cat": "desk",
+  "old": {
+   "w": 33,
+   "h": 28,
+   "bottom": 61
+  },
+  "new": {
+   "w": 66,
+   "h": 56,
+   "bottom": 122
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 137,
+  "file": "pt-swivel-chair.png",
+  "cat": "low",
+  "old": {
+   "w": 14,
+   "h": 21,
+   "bottom": 61
+  },
+  "new": {
+   "w": 28,
+   "h": 42,
+   "bottom": 122
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 138,
+  "file": "pt-desktop-monitor.png",
+  "cat": "desk",
+  "old": {
+   "w": 29,
+   "h": 28,
+   "bottom": 58
+  },
+  "new": {
+   "w": 58,
+   "h": 56,
+   "bottom": 116
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 139,
+  "file": "pt-tv.png",
+  "cat": "desk",
+  "old": {
+   "w": 30,
+   "h": 28,
+   "bottom": 60
+  },
+  "new": {
+   "w": 60,
+   "h": 56,
+   "bottom": 120
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 140,
+  "file": "pt-floor-lamp.png",
+  "cat": "mid",
+  "old": {
+   "w": 12,
+   "h": 34,
+   "bottom": 62
+  },
+  "new": {
+   "w": 24,
+   "h": 68,
+   "bottom": 124
+  },
+  "target": 68,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 141,
+  "file": "pt-monstera.png",
+  "cat": "low",
+  "old": {
+   "w": 20,
+   "h": 21,
+   "bottom": 60
+  },
+  "new": {
+   "w": 40,
+   "h": 42,
+   "bottom": 120
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 142,
+  "file": "pt-sofa-3.png",
+  "cat": "desk",
+  "old": {
+   "w": 37,
+   "h": 28,
+   "bottom": 62
+  },
+  "new": {
+   "w": 74,
+   "h": 56,
+   "bottom": 124
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 143,
+  "file": "pt-coffee-table.png",
+  "cat": "low",
+  "old": {
+   "w": 30,
+   "h": 21,
+   "bottom": 61
+  },
+  "new": {
+   "w": 60,
+   "h": 42,
+   "bottom": 122
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 144,
+  "file": "pt-double-bed.png",
+  "cat": "desk",
+  "old": {
+   "w": 33,
+   "h": 28,
+   "bottom": 62
+  },
+  "new": {
+   "w": 66,
+   "h": 56,
+   "bottom": 124
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 145,
+  "file": "pt-wardrobe.png",
+  "cat": "tall",
+  "old": {
+   "w": 28,
+   "h": 42,
+   "bottom": 62
+  },
+  "new": {
+   "w": 56,
+   "h": 84,
+   "bottom": 124
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 146,
+  "file": "pt-bookcase.png",
+  "cat": "tall",
+  "old": {
+   "w": 38,
+   "h": 42,
+   "bottom": 61
+  },
+  "new": {
+   "w": 76,
+   "h": 84,
+   "bottom": 122
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 147,
+  "file": "pt-tv-cabinet.png",
+  "cat": "low",
+  "old": {
+   "w": 30,
+   "h": 21,
+   "bottom": 61
+  },
+  "new": {
+   "w": 60,
+   "h": 42,
+   "bottom": 122
+  },
+  "target": 42,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 148,
+  "file": "pt-fridge.png",
+  "cat": "tall",
+  "old": {
+   "w": 27,
+   "h": 42,
+   "bottom": 62
+  },
+  "new": {
+   "w": 54,
+   "h": 84,
+   "bottom": 124
+  },
+  "target": 84,
+  "scale_dibujo": 1.0
+ },
+ {
+  "id": 149,
+  "file": "pt-dining-table.png",
+  "cat": "desk",
+  "old": {
+   "w": 33,
+   "h": 28,
+   "bottom": 62
+  },
+  "new": {
+   "w": 66,
+   "h": 56,
+   "bottom": 124
+  },
+  "target": 56,
+  "scale_dibujo": 1.0
+ }
+]

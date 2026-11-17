@@ -41,6 +41,7 @@ export interface AssetCatalogEntry {
 
 // ---- Layer rendering order for the compositor ----
 export const AVATAR_LAYER_ORDER = [
+  'skin',
   'body',
   'shoes',
   'bottom',
@@ -52,6 +53,29 @@ export const AVATAR_LAYER_ORDER = [
   'accessory_glasses',
   'accessory_hat',
 ] as const;
+
+/**
+ * Convención del centinela de piel de una sola capa (Imersa):
+ *
+ * Un avatar puede ser UNA sola hoja ya compuesta (cuerpo + ropa + pelo
+ * en un único PNG) en vez de las 5 capas por partes. Se codifica en el
+ * campo `body` de AvatarConfig, sin añadir un campo nuevo: la tabla
+ * `avatar_config` de Supabase es columna-por-campo (ver supabase/
+ * schema.sql) y un campo nuevo exigiría una migración de BD.
+ *
+ * Si `body` empieza por 'skin_', el compositor y la vista previa
+ * ignoran hair/top/bottom/shoes/accessories y dibujan solo esa hoja,
+ * sin tinte. Los demás campos del preset llevan los valores por
+ * defecto masculinos y son INERTES mientras el centinela está activo;
+ * al editar cualquier parte en CharacterCreator el centinela se limpia
+ * y el body vuelve al default según el género.
+ */
+export const SINGLE_LAYER_SKIN_PREFIX = 'skin_';
+
+/** True si `body` es el centinela de una piel de una sola capa. */
+export function isSingleLayerSkin(body: string): boolean {
+  return body.startsWith(SINGLE_LAYER_SKIN_PREFIX);
+}
 
 // ---- Defaults ----
 export const DEFAULT_AVATAR_CONFIG: Omit<AvatarConfig, 'user_id'> = {

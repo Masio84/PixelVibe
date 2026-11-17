@@ -1,5 +1,5 @@
 import type { AvatarConfig } from '@/lib/types';
-import { AVATAR_LAYER_ORDER } from '@/lib/types';
+import { AVATAR_LAYER_ORDER, isSingleLayerSkin } from '@/lib/types';
 
 /**
  * avatarPresets — Presets de personaje para el selector de skin del perfil
@@ -175,6 +175,32 @@ export const AVATAR_PRESETS: AvatarPreset[] = [
       skin_tone: '#e0a87c',
     },
   },
+  {
+    // Crédito obligatorio (LICENSE en public/assets/characters/imersa/):
+    // «Office Pixel Art by Imersa Studios» — https://imersastudios.itch.io/office-pixel-art
+    // Piel de una sola capa: `body` es el centinela 'skin_imersa_office_worker'
+    // (ver convención en src/lib/types.ts). Los demás campos llevan los
+    // valores por defecto masculinos y son INERTES mientras el centinela
+    // está activo: ni el compositor ni la vista previa los dibujan.
+    // La hoja es la versión FREE del pack (un solo personaje, masculino).
+    id: 'oficinista-imersa',
+    name: 'Oficinista (Imersa)',
+    description: 'Oficinista de Office Pixel Art por Imersa Studios',
+    config: {
+      gender: 'male',
+      body: 'skin_imersa_office_worker',
+      hair: 'hair_m_1',
+      hair_color: '#3a2000',
+      top: 'top_m_1',
+      top_color: '#6c63ff',
+      bottom: 'bottom_m_1',
+      bottom_color: '#333333',
+      shoes: 'shoes_1',
+      shoes_color: '#222222',
+      accessories: [],
+      skin_tone: '#fddbb4',
+    },
+  },
 ];
 
 /** Devuelve la config completa de un preset para un usuario concreto. */
@@ -268,6 +294,12 @@ function tintForLayer(layerName: string, config: AvatarConfig): string | null {
  * AvatarCompositor en Phaser, así que la vista previa es el sprite real.
  */
 export function resolvePreviewLayers(config: AvatarConfig): PreviewLayer[] {
+  // Piel de una sola capa (centinela 'skin_*' en config.body, espejo de
+  // AvatarCompositor.resolveLayerKeys): solo esa hoja, sin tinte.
+  if (isSingleLayerSkin(config.body)) {
+    return [{ key: config.body, tint: null }];
+  }
+
   const layers: { layerName: string; key: string }[] = [
     { layerName: 'body', key: config.body },
     { layerName: 'shoes', key: config.shoes },

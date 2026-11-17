@@ -33,10 +33,19 @@ export class GameScene extends Phaser.Scene {
   // frame equivalía a 3,6 casillas/s). El movimiento usa velocidad con
   // aceleración/desaceleración en vez de paso fijo (ver update()).
   private moveSpeed: number = 5.0;
-  // Fase 4: zoom por defecto 1,5 (antes 1,0: se veía casi todo el mapa
-  // de 1984×992 px y el avatar de 26 px era casi un punto). Con 1,5 el
-  // avatar se ve a ~39 px y la vista recorta el mapa a una sala.
-  public static readonly DEFAULT_ZOOM = 1.5;
+  // Fase 5: zoom por defecto 1,2 (antes 1,5). Con todo al doble, 1,5
+  // dejaba al avatar de 52 px en ~78 px en pantalla y solo se veía
+  // parte de una sala. Cálculo con el mapa 23×23 (mundo ~1472×800 px,
+  // canvas = viewport completo): a 1,2 se ven 1600×900 px en 1920×1080
+  // (todo el mapa con margen; avatar 62 px en pantalla, 5,8 % de la
+  // altura) y 1138×640 px en 1366×768 (una zona + vecinas; avatar 62 px,
+  // 8,1 %). Mínimo 0,9 (antes 0,7): a 0,9 el avatar sigue en 47 px en
+  // pantalla —más que los 39 px del zoom por defecto de Fase 4— y en
+  // 1366×768 cabe todo el mapa, así que nadie aleja hasta ver la
+  // oficina como miniatura. Máximo 3,0 sin cambios.
+  public static readonly DEFAULT_ZOOM = 1.2;
+  public static readonly MIN_ZOOM = 0.9;
+  public static readonly MAX_ZOOM = 3.0;
   // Aceleración 45 casillas/s²: 0→5 en ~0,11 s. Frenado 70 casillas/s²:
   // 5→0 en ~0,07 s (~0,18 casillas de deslizamiento): al soltar la tecla
   // el avatar se detiene en seco, sin patinar ("hielo" de Fase 2).
@@ -208,7 +217,7 @@ export class GameScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
 
-    // Zoom inicial (Fase 4): 1,5 en ambas cámaras (la del mapa y la de
+    // Zoom inicial (Fase 5): 1,2 en ambas cámaras (la del mapa y la de
     // los avatares van sincronizadas; ver adjustZoom).
     this.cameras.main.setZoom(GameScene.DEFAULT_ZOOM);
     if (this.mapScene?.cameras?.main) {
@@ -299,11 +308,10 @@ export class GameScene extends Phaser.Scene {
 
   /** Adjust camera zoom. Delta > 0 = zoom in, Delta < 0 = zoom out */
   public adjustZoom(delta: number, _ptr?: Phaser.Input.Pointer) {
-    // Fase 4: el mínimo era 0,4 (la oficina se veía como maqueta lejana)
-    // y el zoom inicial era 1,0 (casi todo el mapa en pantalla, avatar de
-    // 26 px). Mínimo 0,7 y zoom por defecto 1,5 (DEFAULT_ZOOM).
-    const MIN_ZOOM = 0.7;
-    const MAX_ZOOM = 3.0;
+    // Fase 5: mínimo 0,9 y zoom por defecto 1,2 (DEFAULT_ZOOM); antes
+    // mínimo 0,7 y defecto 1,5 con el avatar a la mitad de tamaño.
+    const MIN_ZOOM = GameScene.MIN_ZOOM;
+    const MAX_ZOOM = GameScene.MAX_ZOOM;
     const current = this.cameras.main.zoom;
     const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, current + delta));
     
