@@ -15,6 +15,10 @@
   --accent: #6c63ff;
   --accent2: #ff6584;
   --accent3: #f9a826;
+  /* Paleta MT Digital Solutions (rediseño del lobby de PixelVibe) */
+  --navy: #0B1B33;
+  --electric: #2563EB;
+  --turquoise: #14B8A6;
   --glass-bg: rgba(20, 20, 45, 0.82);
   --glass-border: rgba(108, 99, 255, 0.25);
   --glass-blur: blur(18px);
