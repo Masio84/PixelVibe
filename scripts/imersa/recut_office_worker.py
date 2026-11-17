@@ -14,7 +14,7 @@ Fuente (versión FREE, ya descargada en /tmp/imersa/pack/):
   vera ~19% mas alto en pantalla — aceptable).
 
 Destino:
-  public/assets/sprites/imersa_office_worker.png — 192x128 px,
+  public/assets/sprites/skin_imersa_office_worker.png — 192x128 px,
   formato del compositor: 6 columnas x 4 filas, filas abajo 0 /
   izquierda 1 / derecha 2 / arriba 3, columna 0 = idle,
   columnas 1-5 = caminar.
@@ -42,7 +42,7 @@ from PIL import Image
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 SRC = "/tmp/imersa/pack/Office_Pixel_Art_Free_v1.0/Characters/office_worker/office_worker.png"
-DST = os.path.normpath(os.path.join(BASE, "..", "..", "public", "assets", "sprites", "imersa_office_worker.png"))
+DST = os.path.normpath(os.path.join(BASE, "..", "..", "public", "assets", "sprites", "skin_imersa_office_worker.png"))
 
 CELL = 32
 # Direccion -> fila idle / fila walk en la hoja original

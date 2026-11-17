@@ -242,7 +242,7 @@ export default function CharacterCreator({
   };
 
   return (
-    <div className="cc-overlay">
+    <div className="cc-overlay" onClick={(e) => e.stopPropagation()}>
       <div className="cc-card">
         {/* Header */}
         <div className="cc-header">

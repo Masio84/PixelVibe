@@ -283,7 +283,9 @@ export default function ProfileModal({
 
       {/* Editor completo en modo edición (por encima del modal de perfil). */}
       {showCustomizer && (
-        <div style={{
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
           position: 'fixed', inset: 0, zIndex: 10000, overflowY: 'auto',
           background: 'radial-gradient(ellipse at 30% 20%, #1a1040 0%, #0d0d1a 50%, #0a1520 100%)',
         }}>
