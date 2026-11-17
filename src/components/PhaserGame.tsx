@@ -331,11 +331,11 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
         <button
           title="Restablecer zoom"
           onClick={() => {
-            gameSceneRef.current?.adjustZoom(1 - (gameSceneRef.current?.getZoom() ?? 1));
+            gameSceneRef.current?.resetZoom();
           }}
           style={{ ...zoomBtnStyle, fontSize: '0.6rem', padding: '0.35rem 0.5rem' }}
         >
-          1:1
+          1,5×
         </button>
       </div>
     </div>
@@ -343,8 +343,9 @@ export default function PhaserGame({ profile, workspaceId, avatarConfig, mapData
 }
 
 const zoomBtnStyle: React.CSSProperties = {
-  background: 'rgba(15, 15, 30, 0.85)',
-  border: '1px solid rgba(108, 99, 255, 0.5)',
+  background: 'rgba(11, 27, 51, 0.85)',
+  // Fase 4: borde morado → azul eléctrico MT (paleta del lobby).
+  border: '1px solid rgba(59, 130, 246, 0.55)',
   color: '#ffffff',
   borderRadius: '8px',
   padding: '0.4rem 0.6rem',

@@ -29,6 +29,20 @@ export interface AvatarEntry {
   moving?: boolean;
 }
 
+/**
+ * Nombre corto para la etiqueta sobre el avatar (Fase 4): el nombre
+ * completo («Jorge Eduardo Cuellar Piedra», ~300 px a 12 px) era más
+ * ancho que el personaje (26 px) y tapaba muros y piso. Se muestra
+ * primer nombre + primer apellido; con 1-2 palabras se deja igual.
+ * Solo afecta a la etiqueta en el mundo; el nombre completo sigue en
+ * el HUD y en el chat.
+ */
+function shortDisplayName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 2) return name;
+  return `${parts[0]} ${parts[2]}`;
+}
+
 export class AvatarManager {
   private scene: Phaser.Scene;
   private avatars: Map<string, AvatarEntry> = new Map();
@@ -62,10 +76,11 @@ export class AvatarManager {
     compositor.setPosition(pos.x, pos.y);
     compositor.setDepth(gridX + gridY);
 
-    // Name label — legible sans-serif, not pixel font
-    const label = this.scene.add.text(0, -44, name, {
+    // Name label — legible sans-serif, not pixel font. Nombre corto
+    // (Fase 4) y 11 px: el nombre completo tapaba muros y piso.
+    const label = this.scene.add.text(0, -44, shortDisplayName(name), {
       fontFamily: '"Nunito", "Segoe UI", Arial, sans-serif',
-      fontSize: '12px',
+      fontSize: '11px',
       color: '#ffffff',
       stroke: '#000000',
       strokeThickness: 4,
@@ -138,9 +153,10 @@ export class AvatarManager {
     entry.name = name;
     entry.lastSeenAt = this.scene.time.now;
 
-    // Update label text
-    if (entry.label.text !== name) {
-      entry.label.setText(name);
+    // Update label text (nombre corto, ver shortDisplayName)
+    const shortName = shortDisplayName(name);
+    if (entry.label.text !== shortName) {
+      entry.label.setText(shortName);
     }
   }
 

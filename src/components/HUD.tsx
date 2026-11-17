@@ -157,7 +157,8 @@ export default function HUD({ profile, workspaceId, workspaceName, users, onOpen
         .hud-logo-stack { display: flex; flex-direction: column; }
         .hud-workspace-name { 
           font-size: 0.6rem; 
-          color: var(--accent2); 
+          /* Fase 4: rosa (var(--accent2)) → turquesa MT. */
+          color: var(--turquoise); 
           font-weight: bold;
           text-transform: uppercase;
           letter-spacing: 1px;
@@ -194,8 +195,9 @@ export default function HUD({ profile, workspaceId, workspaceName, users, onOpen
           gap: 0.5rem;
         }
         .hud-btn {
-          background: rgba(108, 99, 255, 0.2);
-          border: 1px solid rgba(108, 99, 255, 0.4);
+          /* Fase 4: morado → azul eléctrico MT (paleta del lobby). */
+          background: rgba(37, 99, 235, 0.2);
+          border: 1px solid rgba(59, 130, 246, 0.45);
           color: white;
           padding: 0.5rem 1rem;
           border-radius: 10px;
@@ -204,7 +206,7 @@ export default function HUD({ profile, workspaceId, workspaceName, users, onOpen
           backdrop-filter: blur(4px);
           transition: all 0.2s;
         }
-        .hud-btn:hover { background: rgba(108, 99, 255, 0.4); }
+        .hud-btn:hover { background: rgba(37, 99, 235, 0.4); }
         .hud-btn-logout { background: rgba(255, 71, 87, 0.2); border-color: rgba(255, 71, 87, 0.4); }
         .hud-btn-logout:hover { background: rgba(255, 71, 87, 0.4); }
         .hud-btn-leave { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.25); }

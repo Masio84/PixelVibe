@@ -211,7 +211,9 @@ html, body {
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(160deg, #0e1a2b 0%, #0d0d1a 50%, #1a0a2e 100%);
+  /* Fase 4: el degradado terminaba en morado oscuro (#1a0a2e); ahora
+     azul marino MT de punta a punta. */
+  background: linear-gradient(160deg, #0e1a2b 0%, #0B1B33 50%, #081426 100%);
   overflow: hidden;
 }
 
@@ -224,6 +226,14 @@ html, body {
 /* ============================================================
    HUD
    ============================================================ */
+/* Fase 4: el borde vidrio global es morado (rgba(108,99,255,0.25)).
+   Aquí se sobrescribe SOLO para el HUD y el chat de la oficina, sin
+   tocar landing, modales ni creador de avatar, que siguen usando el
+   --glass-border global. */
+.hud, .chat-panel {
+  --glass-border: rgba(59, 130, 246, 0.35);
+}
+
 .hud {
   position: absolute;
   inset: 0;
@@ -261,7 +271,9 @@ html, body {
 .hud-logo-text {
   font-family: var(--font-pixel);
   font-size: 0.7rem;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  /* Fase 4: antes morado→rosa (var(--accent)→var(--accent2)); ahora
+     azul eléctrico→turquesa, paleta MT del lobby. */
+  background: linear-gradient(90deg, var(--electric), var(--turquoise));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -345,14 +357,16 @@ html, body {
 }
 
 .hud-btn:hover {
-  background: rgba(108, 99, 255, 0.25);
-  box-shadow: 0 2px 12px rgba(108,99,255,0.3);
+  /* Fase 4: hover morado → azul eléctrico MT. */
+  background: rgba(37, 99, 235, 0.25);
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.3);
   transform: translateY(-1px);
 }
 
 .hud-btn-logout:hover {
-  background: rgba(255, 101, 132, 0.2);
-  box-shadow: 0 2px 12px rgba(255,101,132,0.3);
+  /* Fase 4: hover rosa → rojo sobrio (sigue siendo acción de salida). */
+  background: rgba(239, 68, 68, 0.2);
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3);
 }
 
 .hud-controls-hint {
@@ -401,7 +415,8 @@ html, body {
   padding: 10px 14px;
   cursor: pointer;
   gap: 8px;
-  background: rgba(108, 99, 255, 0.1);
+  /* Fase 4: fondo morado → azul eléctrico MT. */
+  background: rgba(37, 99, 235, 0.12);
   border-bottom: 1px solid var(--glass-border);
   user-select: none;
 }
@@ -421,7 +436,8 @@ html, body {
 .chat-radius-hint {
   font-size: 0.62rem;
   color: var(--text-muted);
-  background: rgba(108,99,255,0.15);
+  /* Fase 4: fondo morado → azul eléctrico MT. */
+  background: rgba(37, 99, 235, 0.18);
   padding: 2px 6px;
   border-radius: 10px;
 }
@@ -473,7 +489,8 @@ html, body {
 }
 
 .chat-msg.own .chat-msg-content {
-  background: rgba(108,99,255,0.25);
+  /* Fase 4: fondo morado → azul eléctrico MT. */
+  background: rgba(37, 99, 235, 0.28);
 }
 
 .chat-msg-time {
@@ -504,8 +521,9 @@ html, body {
 }
 
 .chat-input:focus {
-  border-color: var(--accent);
-  background: rgba(108,99,255,0.08);
+  /* Fase 4: borde/fondo morado → azul eléctrico MT. */
+  border-color: var(--electric);
+  background: rgba(37, 99, 235, 0.1);
 }
 
 .chat-input::placeholder {
@@ -514,7 +532,8 @@ html, body {
 }
 
 .chat-send-btn {
-  background: var(--accent);
+  /* Fase 4: botón morado (var(--accent)) → azul eléctrico MT. */
+  background: var(--electric);
   border: none;
   color: white;
   border-radius: var(--radius-sm);
@@ -525,7 +544,7 @@ html, body {
 }
 
 .chat-send-btn:hover {
-  background: #7c74ff;
+  background: #1d4ed8;
   transform: scale(1.05);
 }
 

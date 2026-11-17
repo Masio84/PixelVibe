@@ -33,6 +33,10 @@ export class GameScene extends Phaser.Scene {
   // frame equivalía a 3,6 casillas/s). El movimiento usa velocidad con
   // aceleración/desaceleración en vez de paso fijo (ver update()).
   private moveSpeed: number = 5.0;
+  // Fase 4: zoom por defecto 1,5 (antes 1,0: se veía casi todo el mapa
+  // de 1984×992 px y el avatar de 26 px era casi un punto). Con 1,5 el
+  // avatar se ve a ~39 px y la vista recorta el mapa a una sala.
+  public static readonly DEFAULT_ZOOM = 1.5;
   // Aceleración 45 casillas/s²: 0→5 en ~0,11 s. Frenado 70 casillas/s²:
   // 5→0 en ~0,07 s (~0,18 casillas de deslizamiento): al soltar la tecla
   // el avatar se detiene en seco, sin patinar ("hielo" de Fase 2).
@@ -101,8 +105,11 @@ export class GameScene extends Phaser.Scene {
 
     this.avatarManager = new AvatarManager(this, this.getIsoPos.bind(this));
 
-    // Ambient Lighting Overlay
-    const ambient = this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x1a2b4c, 0.4);
+    // Ambient Lighting Overlay (Fase 4): el alfa era 0,4 y apagaba los
+    // colores ~un tercio (filtro azul 0x1a2b4c en MULTIPLY). Se baja a
+    // 0,15 como primer paso —conserva algo de ambiente sin matar el
+    // color—; si aun así se ve frío, el siguiente paso es quitarlo.
+    const ambient = this.add.rectangle(0, 0, this.scale.width * 2, this.scale.height * 2, 0x1a2b4c, 0.15);
     ambient.setOrigin(0, 0);
     ambient.setScrollFactor(0);
     ambient.setBlendMode(Phaser.BlendModes.MULTIPLY);
@@ -200,6 +207,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+
+    // Zoom inicial (Fase 4): 1,5 en ambas cámaras (la del mapa y la de
+    // los avatares van sincronizadas; ver adjustZoom).
+    this.cameras.main.setZoom(GameScene.DEFAULT_ZOOM);
+    if (this.mapScene?.cameras?.main) {
+      this.mapScene.cameras.main.setZoom(GameScene.DEFAULT_ZOOM);
+    }
   }
 
   /** Reanuda el seguimiento de la cámara sobre el avatar local. */
@@ -285,7 +299,10 @@ export class GameScene extends Phaser.Scene {
 
   /** Adjust camera zoom. Delta > 0 = zoom in, Delta < 0 = zoom out */
   public adjustZoom(delta: number, _ptr?: Phaser.Input.Pointer) {
-    const MIN_ZOOM = 0.4;
+    // Fase 4: el mínimo era 0,4 (la oficina se veía como maqueta lejana)
+    // y el zoom inicial era 1,0 (casi todo el mapa en pantalla, avatar de
+    // 26 px). Mínimo 0,7 y zoom por defecto 1,5 (DEFAULT_ZOOM).
+    const MIN_ZOOM = 0.7;
     const MAX_ZOOM = 3.0;
     const current = this.cameras.main.zoom;
     const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, current + delta));
@@ -301,6 +318,15 @@ export class GameScene extends Phaser.Scene {
 
   public getZoom(): number {
     return this.cameras.main.zoom;
+  }
+
+  /** Vuelve al zoom por defecto (botón de restablecer del HUD). */
+  public resetZoom() {
+    this.cameras.main.setZoom(GameScene.DEFAULT_ZOOM);
+    if (this.mapScene?.cameras?.main) {
+      this.mapScene.cameras.main.setZoom(GameScene.DEFAULT_ZOOM);
+    }
+    this.resumeFollow();
   }
 
   /** Check walkability against the live dynamic grid */

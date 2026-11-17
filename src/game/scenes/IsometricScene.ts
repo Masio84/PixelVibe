@@ -160,6 +160,9 @@ export class IsometricScene extends Phaser.Scene {
       case 13:
       case 14:
         this.drawFloorTile(x, y, depth, type);
+        // Puerta: hueco de piso en una fila de muros → umbral visible.
+        const door = this.getDoorOrientation(col, row);
+        if (door) this.drawDoorThreshold(x, y, depth, door);
         break;
 
       // ── Furniture (existing) ──
@@ -226,8 +229,9 @@ export class IsometricScene extends Phaser.Scene {
     const img = this.add.image(x, y, key);
     img.setDepth(depth);
 
-    const isLight = (Math.floor(x / 10) + Math.floor(y / 10)) % 2 === 0;
-    if (!isLight) img.setTint(0xdddddd);
+    // Fase 4: ANTES la mitad de las casillas llevaba un tint 0xdddddd
+    // pseudoaleatorio (damero por posición en pantalla) que moteaba los
+    // pisos como sucios; los PNG de piso ya tienen su textura. Sin tint.
     this.tileLayer.add(img);
 
     // Falling leaves on Terrace
@@ -250,47 +254,97 @@ export class IsometricScene extends Phaser.Scene {
   // Existing furniture drawers
   // ──────────────────────────────────────────────────────────────
   /**
-   * Muro isométrico con volumen (Fase 3B). Sustituye a wall.png, que era
-   * un único color plano (36,62,71) sin textura ni cara superior.
-   * Misma huella y punto de apoyo que el PNG anterior: base en `y`,
-   * 32 px de ancho centrado en `x`. Altura visible 44 px (~1,7× el
-   * avatar) con 3 caras: superior más clara, laterales sombreados,
-   * juntas de panel y sombra en el suelo. Depth igual que antes (+0,0).
+   * Muro isométrico con volumen (Fase 3B, continuo en Fase 4). ANTES cada
+   * casilla de muro era un cubo de 32 px de ancho centrado en el tile:
+   * entre cubos vecinos quedaban huecos por los que se veía el fondo
+   * (negro) y la fila no se leía como pared. Ahora el muro cubre el
+   * rombo COMPLETO del tile (64×32): la cara superior es el rombo entero
+   * con el vértice más alto a 44 px y las dos caras visibles bajan hasta
+   * el rombo base. Dos muros vecinos comparten arista exacta, así que
+   * una fila se lee como pared continua, y un hueco (puerta) queda como
+   * abertura sobre el piso, no como negro. Mismo punto de apoyo (base
+   * en `y`) y misma altura máxima (~44 px). Depth igual que antes.
    */
   private drawWallTile(x: number, y: number, depth: number) {
     const g = this.add.graphics();
-    // Sombra en el suelo
-    g.fillStyle(0x000000, 0.18);
-    g.fillEllipse(x, y + 4, 36, 9);
-    // Cara superior (más clara, legible)
+    // Cara superior (más clara, legible): rombo completo del tile.
     g.fillStyle(COLORS.wallTop);
     g.fillPoints([
-      { x, y: y - 44 }, { x: x + 16, y: y - 36 },
-      { x, y: y - 28 }, { x: x - 16, y: y - 36 },
+      { x, y: y - 44 }, { x: x + 32, y: y - 28 },
+      { x, y: y - 12 }, { x: x - 32, y: y - 28 },
     ], true);
-    // Cara izquierda (sombra media)
+    // Cara izquierda / suroeste (sombra media): del rombo superior al
+    // rombo base (vértices L y B del tile).
     g.fillStyle(COLORS.wallSide);
     g.fillPoints([
-      { x: x - 16, y: y - 36 }, { x, y: y - 28 },
-      { x, y }, { x: x - 16, y: y - 8 },
+      { x: x - 32, y: y - 28 }, { x, y: y - 12 },
+      { x, y: y + 16 }, { x: x - 32, y },
     ], true);
-    // Cara derecha (más oscura)
+    // Cara derecha / sureste (más oscura).
     g.fillStyle(COLORS.wallFront);
     g.fillPoints([
-      { x: x + 16, y: y - 36 }, { x, y: y - 28 },
-      { x, y }, { x: x + 16, y: y - 8 },
+      { x, y: y - 12 }, { x: x + 32, y: y - 28 },
+      { x: x + 32, y }, { x, y: y + 16 },
     ], true);
-    // Juntas de panel en ambas caras (textura mínima)
+    // Juntas de hilada a media altura en ambas caras (textura mínima):
+    // de punto medio de arista vertical a punto medio de arista vertical.
     g.lineStyle(1, 0x000000, 0.15);
-    g.lineBetween(x - 16, y - 26, x, y - 18);
-    g.lineBetween(x - 16, y - 16, x, y - 8);
-    g.lineBetween(x + 16, y - 26, x, y - 18);
-    g.lineBetween(x + 16, y - 16, x, y - 8);
+    g.lineBetween(x - 32, y - 14, x, y + 2);
+    g.lineBetween(x + 32, y - 14, x, y + 2);
     // Borde superior claro
     g.lineStyle(1, 0x7fb3c4, 0.5);
-    g.lineBetween(x, y - 44, x + 16, y - 36);
-    g.lineBetween(x, y - 44, x - 16, y - 36);
+    g.lineBetween(x, y - 44, x + 32, y - 28);
+    g.lineBetween(x, y - 44, x - 32, y - 28);
     g.setDepth(depth);
+    this.tileLayer.add(g);
+  }
+
+  /**
+   * Orientación de la puerta en la casilla (col, row), o null si no es
+   * puerta. Una puerta es una casilla de piso con muro a ambos lados en
+   * la misma fila ('row': el muro corre variando la columna) o en la
+   * misma columna ('col': el muro corre variando la fila). Sirve para
+   * cualquier layout (también los que edita el admin), no solo el mapa
+   * por defecto.
+   */
+  private getDoorOrientation(col: number, row: number): 'row' | 'col' | null {
+    const grid = this.getGrid();
+    const isWall = (c: number, r: number) =>
+      r >= 0 && r < grid.length && c >= 0 && c < grid[0].length && grid[r][c] === 6;
+    if (isWall(col - 1, row) && isWall(col + 1, row)) return 'row';
+    if (isWall(col, row - 1) && isWall(col, row + 1)) return 'col';
+    return null;
+  }
+
+  /**
+   * Umbral de puerta (Fase 4): banda de madera sobre el piso de la
+   * casilla, siguiendo la dirección del muro. Sin marca, el hueco en la
+   * fila de muros se leía como un hueco negro más; con el umbral la
+   * abertura se lee como paso entre salas. Depth +0,1: sobre el piso,
+   * por debajo de avatares y muebles.
+   */
+  private drawDoorThreshold(x: number, y: number, depth: number, orientation: 'row' | 'col') {
+    const g = this.add.graphics();
+    // Dirección del muro en pantalla: por columna (+32,+16) o por fila
+    // (-32,+16). La banda mide 60 px de largo (casi todo el tile, para
+    // conectar visualmente con los muros vecinos) y 12 px de ancho.
+    const dir = orientation === 'row' ? { x: 32, y: 16 } : { x: -32, y: 16 };
+    const len = Math.hypot(dir.x, dir.y);
+    const ax = (dir.x / len) * 30;
+    const ay = (dir.y / len) * 30;
+    const bx = (dir.y / len) * 6;
+    const by = (-dir.x / len) * 6;
+    const pts = [
+      { x: x + ax + bx, y: y + ay + by },
+      { x: x + ax - bx, y: y + ay - by },
+      { x: x - ax - bx, y: y - ay - by },
+      { x: x - ax + bx, y: y - ay + by },
+    ];
+    g.fillStyle(0x9a7b4f, 0.95);
+    g.fillPoints(pts, true);
+    g.lineStyle(1, 0x6b5636, 0.9);
+    g.strokePoints(pts, true);
+    g.setDepth(depth + 0.1);
     this.tileLayer.add(g);
   }
 

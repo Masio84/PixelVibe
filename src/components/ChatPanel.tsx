@@ -35,7 +35,9 @@ function formatTime(dateStr: string) {
 
 export default function ChatPanel({ profile, workspaceId, messages, localPosition }: ChatPanelProps) {
   const [input, setInput] = useState('');
-  const [isOpen, setIsOpen] = useState(true);
+  // Fase 4: cerrado por defecto (antes abierto): tapaba ~35% de la
+  // altura en pantallas bajas. Se abre con un clic en la cabecera.
+  const [isOpen, setIsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -87,7 +89,7 @@ export default function ChatPanel({ profile, workspaceId, messages, localPositio
             )}
             {nearbyMessages.map((msg, i) => (
               <div key={i} className={`chat-msg ${msg.user_id === profile.id ? 'own' : ''}`}>
-                <span className="chat-msg-name" style={{ color: msg.user_id === profile.id ? '#a78bfa' : '#60a5fa' }}>
+                <span className="chat-msg-name" style={{ color: msg.user_id === profile.id ? '#2dd4bf' : '#60a5fa' }}>
                   {msg.name || 'User'}
                 </span>
                 <span className="chat-msg-content">{msg.content}</span>

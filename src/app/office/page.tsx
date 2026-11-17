@@ -85,9 +85,21 @@ function ShieldCheckIcon() {
   );
 }
 
+/**
+ * Lupa del buscador (Fase 4): ANTES el <svg> no tenía width/height y
+ * dependía solo de la regla `.search svg` del <style jsx>. Causa raíz
+ * verificada en el bundle compilado: styled-jsx convierte esa regla en
+ * `.search.jsx-XXX svg.jsx-XXX` (exige la clase en el propio svg), pero
+ * el plugin solo añade la clase al JSX del componente dueño del
+ * <style>; SearchIcon es una función aparte y su svg nunca la recibe,
+ * así que la regla jamás coincidía y el svg caía a su tamaño por
+ * defecto (~300 px), blanco y tapando el buscador. Ahora lleva 18×18
+ * explícitos —el mismo patrón que CubeLogo— y la regla CSS queda como
+ * refuerzo, no como único sostén.
+ */
 function SearchIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
       <path d="m21 21-4.3-4.3" />
     </svg>

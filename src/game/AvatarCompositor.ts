@@ -102,7 +102,11 @@ export class AvatarCompositor {
           start: rowIdx * COLS + 1,
           end: rowIdx * COLS + 5,
         }),
-        frameRate: 10,
+        // Fase 4: frameRate 13 (antes 10): con solo 2 poses por paso y
+        // 5 casillas/s, a 10 fps el avatar avanzaba 0,5 casillas por
+        // frame y patinaba. 13 fps suaviza el ciclo sin cambiar la
+        // velocidad ni los sprites.
+        frameRate: 13,
         repeat: -1,
       });
       scene.anims.create({
